@@ -1,0 +1,11 @@
+# Tracking Network
+
+U-Net 기반의 일련의 연속적인 이미지에서 각 인스턴스 객체를 분리 및 추적하는 네트워크
+
+## 요구사항
+
+* Python &ge; 3.7
+* Toolz &ge; 0.10.0
+* TensorFlow &ge; 2.1.0
+* Keras &ge; 2.3.1
+* numpy &ge; 1.17.4

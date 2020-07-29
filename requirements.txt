@@ -1,0 +1,8 @@
+common-py==0.1.4
+Keras==2.3.1
+tensorflow==2.1.0
+opencv-python==4.1.1.26
+numpy>=1.17.4
+opencv-python==4.1.1.26
+scikit-image==0.16.2
+matplotlib==3.1.1
