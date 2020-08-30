@@ -117,12 +117,18 @@ def get_all_colors(
         ((235, ), 206)]
     """
     black_color = 0 if check_grayscale_image(img) else (0, 0, 0)
-    r = get_colors_on(img)
-    r2 = (list(map(tuple, r[0])), r[1])
-    r3 = list(zip(r2[0], r2[1]))
-    r3 = sorted(r3, key=lambda x: x[1], reverse=True)
-    indexes = [i for i, v in enumerate(r3) if v[0] == black_color]
-    if len(indexes) > 0 and zero_first:
-        zero_value = r3[indexes[0]]
-        r3 = [zero_value] + r3[: indexes[0]] + r3[indexes[0] + 1 :]
-    return r3
+    image_colors = get_colors_on(img)
+    colors_counts_tuple = list(map(tuple, image_colors[0])), image_colors[1]
+    color_count_tuples = list(zip(colors_counts_tuple[0], colors_counts_tuple[1]))
+    color_count_tuples = sorted(color_count_tuples, key=lambda x: x[1], reverse=True)
+    black_color_indexes = [
+        i for i, v in enumerate(color_count_tuples) if v[0] == black_color
+    ]
+    if len(black_color_indexes) > 0 and zero_first:
+        zero_value = color_count_tuples[black_color_indexes[0]]
+        color_count_tuples = (
+            [zero_value]
+            + color_count_tuples[: black_color_indexes[0]]
+            + color_count_tuples[black_color_indexes[0] + 1 :]
+        )
+    return color_count_tuples
