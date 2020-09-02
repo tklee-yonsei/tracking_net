@@ -72,6 +72,9 @@ def get_all_colors(
 ) -> List[Tuple[Tuple[int, int, int], int]]:
     """
     Open CV 컬러 이미지에서 사용된 컬러 및 개수를 반환합니다.
+    
+    `zero_first`가 `True`일 경우, 검은색을 맨 앞으로 이동합니다.
+    `zero_first`가 `True`이더라도, 검은색이 없다면, 맨 앞은 검은색이 아닌 다른 색상입니다.
 
     Parameters
     ----------
