@@ -62,34 +62,8 @@ if __name__ == "__main__":
     # generator
     batch_size: int = 1
     image_folder: str = os.path.join(prediction_dataset_folder, "image", "current")
+    label_folder: str = os.path.join(prediction_dataset_folder, "semantic_label")
 
-    # 1
-    # 이미지 크기(채널)가 변하지 않을 경우, 이 방법을 권장.
-    # 전처리 중간 결과 저장에서, 멀티쓰레드 처리에 의해 섞이는 순서를 그나마 컨트롤 할 수 있다.
-    # img_flow: FlowFromDirectory = ImagesFromDirectory(
-    #     dataset_directory=image_folder,
-    #     batch_size=batch_size,
-    #     color_mode="grayscale",
-    #     shuffle=False,
-    #     save_to_dir=".",
-    #     save_prefix="pre_processed_img_",
-    # )
-    # idg = ImageDataGenerator(
-    #     preprocessing_function=toolz.compose_left(
-    #         lambda _img: np.array(_img, dtype=np.uint8),
-    #         gray_image_apply_clahe,
-    #         lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-    #     ),
-    #     fill_mode="nearest",
-    # )
-    # image_generator = img_flow.get_iterator(generator=idg)
-    # image_transformed_generator = generate_iterator_and_transform(
-    #     image_generator=image_generator, transform_function_for_all=img_normalization,
-    # )
-
-    # 2
-    # 각 이미지 처리 함수에서, 이미지 크기(채널)가 변하는 경우, 이 방법을 권장.
-    # 중간 결과의 순서는 보장되지 않는다.
     img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,
         batch_size=batch_size,
@@ -107,21 +81,36 @@ if __name__ == "__main__":
             ),
             None,
         ),
-        each_transformed_image_save_function_optional=save_batch_transformed_img,
         transform_function_for_all=img_to_ratio,
+    )
+
+    label_flow: FlowFromDirectory = ImagesFromDirectory(
+        dataset_directory=label_folder,
+        batch_size=batch_size,
+        color_mode="grayscale",
+        shuffle=False,
+    )
+    label_generator = label_flow.get_iterator()
+    label_transformed_generator = generate_iterator_and_transform(
+        image_generator=label_generator, transform_function_for_all=img_to_ratio,
     )
 
     filenames = image_generator.filenames
     nb_samples = math.ceil(image_generator.samples / batch_size)
 
-    prediction_generator = image_transformed_generator
+    # input_generator = map(list, image_transformed_generator)
+    # output_generator = map(list, label_transformed_generator)
+    test_generator = zip(image_transformed_generator, label_transformed_generator)
 
-    # predict
-    results = model.predict_generator(prediction_generator, steps=nb_samples, verbose=1)
+    # test
+    model.compile(
+        optimizer=keras.optimizers.Adam(lr=1e-4),
+        loss=keras.losses.binary_crossentropy,
+        metrics=["accuracy"],
+    )
+    test_loss, test_acc = model.evaluate_generator(
+        test_generator, steps=nb_samples, verbose=1
+    )
 
-    # 후처리 및 저장
-    for index, result in enumerate(results):
-        name: str = os.path.basename(filenames[index])
-        print("Post Processing for {}".format(name))
-        result = ratio_to_img(result)
-        cv2.imwrite(name, result)
+    print("test_loss: {}".format(test_loss))
+    print("test_acc: {}".format(test_acc))

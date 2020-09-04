@@ -86,6 +86,11 @@ def generate_iterator_and_transform(
     """
     if each_image_transform_function:
         for index, batch_image in enumerate(image_generator):
+            each_transformed_image_save_function_optional2 = None
+            if each_transformed_image_save_function_optional:
+                each_transformed_image_save_function_optional2 = toolz.curry(
+                    each_transformed_image_save_function_optional
+                )(index)
             batch_image = transform_for_batch(
                 batch_img=batch_image,
                 each_image_transform_function=get_or_else(
@@ -94,9 +99,7 @@ def generate_iterator_and_transform(
                 each_image_transform_function_output_shape_optional=each_image_transform_function[
                     1
                 ],
-                each_transformed_image_save_function_optional=toolz.curry(
-                    each_transformed_image_save_function_optional
-                )(index),
+                each_transformed_image_save_function_optional=each_transformed_image_save_function_optional2,
             )
             if transform_function_for_all:
                 batch_image = transform_function_for_all(batch_image)
