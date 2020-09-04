@@ -25,16 +25,26 @@ class TestBatchTransform(TestCase):
         batch_img: np.ndarray = np.arange(0, 96).reshape(2, 4, 4, 3)
 
         # Processing
-        batch_transform_function: Callable[[np.ndarray], np.ndarray] = lambda v: v + 1
-        batch_transform_function_output_shape: Tuple[int, int, int] = (2, 4, 4, 3)
+        each_image_transform_function: Callable[
+            [np.ndarray], np.ndarray
+        ] = lambda v: v + 1
+        each_image_transform_function_output_shape_optional: Tuple[int, int, int] = (
+            4,
+            4,
+            3,
+        )
         transformed: np.ndarray = batch_transform.transform_for_batch(
-            batch_img, batch_transform_function, batch_transform_function_output_shape
+            batch_img=batch_img,
+            each_image_transform_function=each_image_transform_function,
+            each_image_transform_function_output_shape_optional=each_image_transform_function_output_shape_optional,
         )
 
         # Result
         result_transform: np.ndarray = np.arange(1, 97).reshape(2, 4, 4, 3)
 
         # Check
+        print(transformed)
+        print(result_transform)
         self.assertTrue(np.array_equal(transformed, result_transform))
 
     def test_example_generate_iterator_and_transform(self):

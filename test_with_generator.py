@@ -10,7 +10,7 @@ import toolz
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
 from idl.model_io import load_model
-from utils.image_transform import gray_image_apply_clahe
+from utils.image_transform import gray_image_apply_clahe, img_to_ratio
 
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -22,21 +22,6 @@ if gpus:
     except RuntimeError as e:
         # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
         print(e)
-
-
-def img_to_ratio(img: np.ndarray) -> np.ndarray:
-    return img / 255.0
-
-
-def ratio_to_img(ratio_img: np.ndarray) -> np.ndarray:
-    return ratio_img * 255
-
-
-def ratio_threshold(ratio_img: np.ndarray, threshold: float = 0.5) -> np.ndarray:
-    result_ratio_img = ratio_img.copy()
-    result_ratio_img[result_ratio_img > threshold] = 1
-    result_ratio_img[result_ratio_img <= threshold] = 0
-    return result_ratio_img
 
 
 def save_batch_transformed_img(
