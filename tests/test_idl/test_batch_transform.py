@@ -38,17 +38,19 @@ class TestBatchTransform(TestCase):
         self.assertTrue(np.array_equal(transformed, result_transform))
 
     def test_example_generate_iterator_and_transform(self):
+        # Prerequisite
         image_from_directory: FlowFromDirectory = ImagesFromDirectory(
             self.full_test_resource_folder, 1
         )
-        # Prerequisite
 
         # Processing
-        iterator = batch_transform.generate_iterator_and_transform(
+        image_generator = image_from_directory.get_iterator()
+        image_transformed_generator = batch_transform.generate_iterator_and_transform(
             image_from_directory.get_iterator()
         )
 
         # Result
+        result_samples: int = 3
 
         # Check
-        self.assertTrue(True)
+        self.assertEqual(image_generator.samples, result_samples)

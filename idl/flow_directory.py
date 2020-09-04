@@ -136,19 +136,3 @@ class ImagesFromDirectory(FlowFromDirectory):
             subset=subset,
             follow_links=follow_links,
         )
-
-
-from keras.preprocessing.image import ImageDataGenerator
-
-
-class AugmentingDataGenerator(ImageDataGenerator):
-    # override
-    def flow_from_directory(self, *args, **kwargs):
-        generator = super().flow_from_directory(*args, **kwargs)
-        for filename in generator.filenames:
-            image = next(generator)
-            yield image, filename
-        # while True:
-        #     for filename in generator.filenames:
-        #         image = next(generator)
-        #         yield image, filename

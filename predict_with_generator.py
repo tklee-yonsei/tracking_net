@@ -14,6 +14,21 @@ from idl.model_io import load_model
 from utils.image_transform import gray_image_apply_clahe
 
 
+def img_to_ratio(img: np.ndarray) -> np.ndarray:
+    return img / 255.0
+
+
+def ratio_to_img(ratio_img: np.ndarray) -> np.ndarray:
+    return ratio_img * 255
+
+
+def ratio_threshold(ratio_img: np.ndarray, threshold: float = 0.5) -> np.ndarray:
+    result_ratio_img = ratio_img.copy()
+    result_ratio_img[result_ratio_img > threshold] = 1
+    result_ratio_img[result_ratio_img <= threshold] = 0
+    return result_ratio_img
+
+
 def save_batch_transformed_img(
     index_num: int, batch_num: int, transformed_batch_img: np.ndarray
 ) -> None:
@@ -24,10 +39,6 @@ def save_batch_transformed_img(
 
     # 저장
     cv2.imwrite(img_fullpath, transformed_batch_img)
-
-
-def img_normalization(img: np.ndarray) -> np.ndarray:
-    return img / 255.0
 
 
 if __name__ == "__main__":
@@ -53,6 +64,8 @@ if __name__ == "__main__":
     image_folder: str = os.path.join(prediction_dataset_folder, "image", "current")
 
     # 1
+    # 이미지 크기(채널)가 변하지 않을 경우, 이 방법을 권장.
+    # 전처리 중간 결과 저장에서, 멀티쓰레드 처리에 의해 섞이는 순서를 그나마 컨트롤 할 수 있다.
     # img_flow: FlowFromDirectory = ImagesFromDirectory(
     #     dataset_directory=image_folder,
     #     batch_size=batch_size,
@@ -75,6 +88,8 @@ if __name__ == "__main__":
     # )
 
     # 2
+    # 각 이미지 처리 함수에서, 이미지 크기(채널)가 변하는 경우, 이 방법을 권장.
+    # 중간 결과의 순서는 보장되지 않는다.
     img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,
         batch_size=batch_size,
@@ -93,30 +108,8 @@ if __name__ == "__main__":
             None,
         ),
         each_transformed_image_save_function_optional=save_batch_transformed_img,
-        transform_function_for_all=img_normalization,
+        transform_function_for_all=img_to_ratio,
     )
-
-    # 3
-    # img_flow: FlowFromDirectory = ImagesFromDirectory(
-    #     dataset_directory=image_folder,
-    #     batch_size=batch_size,
-    #     color_mode="grayscale",
-    #     shuffle=False,
-    # )
-    # image_generator = img_flow.get_iterator_image_name()
-    # image_transformed_generator = generate_iterator_and_transform(
-    #     image_generator=image_generator,
-    #     each_image_transform_function=(
-    #         toolz.compose_left(
-    #             lambda _img: np.array(_img, dtype=np.uint8),
-    #             gray_image_apply_clahe,
-    #             lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-    #         ),
-    #         None,
-    #     ),
-    #     each_transformed_image_save_function_optional=save_batch_transformed_img,
-    #     transform_function_for_all=img_normalization,
-    # )
 
     filenames = image_generator.filenames
     nb_samples = math.ceil(image_generator.samples / batch_size)
@@ -132,5 +125,5 @@ if __name__ == "__main__":
     for index, result in enumerate(results):
         name: str = os.path.basename(filenames[index])
         print("Post Processing for {}".format(name))
-        result = result * 255
+        result = ratio_to_img(result)
         cv2.imwrite(name, result)
