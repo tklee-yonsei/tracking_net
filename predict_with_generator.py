@@ -1,0 +1,136 @@
+import math
+import os
+from typing import Callable
+
+import cv2
+import keras
+import numpy as np
+import toolz
+from keras.preprocessing.image import ImageDataGenerator
+
+from idl.batch_transform import generate_iterator_and_transform
+from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
+from idl.model_io import load_model
+from utils.image_transform import gray_image_apply_clahe
+
+
+def save_batch_transformed_img(
+    index_num: int, batch_num: int, transformed_batch_img: np.ndarray
+) -> None:
+    # 이름
+    img_path = os.path.join(".")
+    img_name = "img_transformed_{:04d}_{:02d}.png".format(index_num, batch_num)
+    img_fullpath = os.path.join(img_path, img_name)
+
+    # 저장
+    cv2.imwrite(img_fullpath, transformed_batch_img)
+
+
+def img_normalization(img: np.ndarray) -> np.ndarray:
+    return img / 255.0
+
+
+if __name__ == "__main__":
+    # 사용한 모델, 사용한 트레이닝 Prediction 날짜
+    prediction_id: str = "_testest"
+
+    base_data_folder: str = os.path.join("data")
+    base_save_folder: str = os.path.join("save")
+    save_models_folder: str = os.path.join(base_save_folder, "models")
+    save_weights_folder: str = os.path.join(base_save_folder, "weights")
+
+    prediction_dataset_folder: str = os.path.join(
+        base_data_folder, "ivan_filtered_test"
+    )
+
+    # model
+    model_path: str = os.path.join(save_models_folder, "unet_l4.json")
+    weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
+    model: keras.models.Model = load_model(model_path, weights_path)
+
+    # generator
+    batch_size: int = 1
+    image_folder: str = os.path.join(prediction_dataset_folder, "image", "current")
+
+    # 1
+    # img_flow: FlowFromDirectory = ImagesFromDirectory(
+    #     dataset_directory=image_folder,
+    #     batch_size=batch_size,
+    #     color_mode="grayscale",
+    #     shuffle=False,
+    #     save_to_dir=".",
+    #     save_prefix="pre_processed_img_",
+    # )
+    # idg = ImageDataGenerator(
+    #     preprocessing_function=toolz.compose_left(
+    #         lambda _img: np.array(_img, dtype=np.uint8),
+    #         gray_image_apply_clahe,
+    #         lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+    #     ),
+    #     fill_mode="nearest",
+    # )
+    # image_generator = img_flow.get_iterator(generator=idg)
+    # image_transformed_generator = generate_iterator_and_transform(
+    #     image_generator=image_generator, transform_function_for_all=img_normalization,
+    # )
+
+    # 2
+    img_flow: FlowFromDirectory = ImagesFromDirectory(
+        dataset_directory=image_folder,
+        batch_size=batch_size,
+        color_mode="grayscale",
+        shuffle=False,
+    )
+    image_generator = img_flow.get_iterator()
+    image_transformed_generator = generate_iterator_and_transform(
+        image_generator=image_generator,
+        each_image_transform_function=(
+            toolz.compose_left(
+                lambda _img: np.array(_img, dtype=np.uint8),
+                gray_image_apply_clahe,
+                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+            ),
+            None,
+        ),
+        each_transformed_image_save_function_optional=save_batch_transformed_img,
+        transform_function_for_all=img_normalization,
+    )
+
+    # 3
+    # img_flow: FlowFromDirectory = ImagesFromDirectory(
+    #     dataset_directory=image_folder,
+    #     batch_size=batch_size,
+    #     color_mode="grayscale",
+    #     shuffle=False,
+    # )
+    # image_generator = img_flow.get_iterator_image_name()
+    # image_transformed_generator = generate_iterator_and_transform(
+    #     image_generator=image_generator,
+    #     each_image_transform_function=(
+    #         toolz.compose_left(
+    #             lambda _img: np.array(_img, dtype=np.uint8),
+    #             gray_image_apply_clahe,
+    #             lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+    #         ),
+    #         None,
+    #     ),
+    #     each_transformed_image_save_function_optional=save_batch_transformed_img,
+    #     transform_function_for_all=img_normalization,
+    # )
+
+    filenames = image_generator.filenames
+    nb_samples = math.ceil(image_generator.samples / batch_size)
+
+    prediction_generator = image_transformed_generator
+
+    # predict
+    results = model.predict_generator(
+        image_transformed_generator, steps=nb_samples, verbose=1
+    )
+
+    # 후처리 및 저장
+    for index, result in enumerate(results):
+        name: str = os.path.basename(filenames[index])
+        print("Post Processing for {}".format(name))
+        result = result * 255
+        cv2.imwrite(name, result)

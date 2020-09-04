@@ -44,7 +44,9 @@ class TestBatchTransform(TestCase):
         # Prerequisite
 
         # Processing
-        iterator = batch_transform.generate_iterator_and_transform(image_from_directory)
+        iterator = batch_transform.generate_iterator_and_transform(
+            image_from_directory.get_iterator()
+        )
 
         # Result
 

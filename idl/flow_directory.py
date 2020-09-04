@@ -74,6 +74,25 @@ class FlowFromDirectory:
             interpolation=self.interpolation,
         )
 
+    def get_iterator_image_name(self):
+        generator = AugmentingDataGenerator()
+        return generator.flow_from_directory(
+            self.from_directory,
+            classes=self.class_directorys,
+            target_size=self.target_size,
+            batch_size=self.batch_size,
+            color_mode=self.color_mode,
+            class_mode=self.class_mode,
+            shuffle=self.shuffle,
+            seed=self.seed,
+            save_to_dir=self.save_to_dir,
+            save_prefix=self.save_prefix,
+            save_format=self.save_format,
+            follow_links=self.follow_links,
+            subset=self.subset,
+            interpolation=self.interpolation,
+        )
+
 
 class ImagesFromDirectory(FlowFromDirectory):
     """
@@ -117,3 +136,19 @@ class ImagesFromDirectory(FlowFromDirectory):
             subset=subset,
             follow_links=follow_links,
         )
+
+
+from keras.preprocessing.image import ImageDataGenerator
+
+
+class AugmentingDataGenerator(ImageDataGenerator):
+    # override
+    def flow_from_directory(self, *args, **kwargs):
+        generator = super().flow_from_directory(*args, **kwargs)
+        for filename in generator.filenames:
+            image = next(generator)
+            yield image, filename
+        # while True:
+        #     for filename in generator.filenames:
+        #         image = next(generator)
+        #         yield image, filename
