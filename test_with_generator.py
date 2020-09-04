@@ -1,17 +1,27 @@
 import math
 import os
-from typing import Callable
 
 import cv2
 import keras
 import numpy as np
+import tensorflow as tf
 import toolz
-from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
 from idl.model_io import load_model
 from utils.image_transform import gray_image_apply_clahe
+
+# GPU Setting
+gpus = tf.config.experimental.list_physical_devices("GPU")
+if gpus:
+    # 텐서플로가 첫 번째 GPU만 사용하도록 제한
+    try:
+        tf.config.experimental.set_visible_devices(gpus[0], "GPU")
+        tf.config.experimental.set_memory_growth(gpus[0], True)
+    except RuntimeError as e:
+        # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
+        print(e)
 
 
 def img_to_ratio(img: np.ndarray) -> np.ndarray:
@@ -42,17 +52,15 @@ def save_batch_transformed_img(
 
 
 if __name__ == "__main__":
-    # 사용한 모델, 사용한 트레이닝 Prediction 날짜
-    prediction_id: str = "_testest"
+    # 사용한 모델, 사용한 트레이닝 Test 날짜
+    test_id: str = "_testest"
 
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
 
-    prediction_dataset_folder: str = os.path.join(
-        base_data_folder, "ivan_filtered_test"
-    )
+    test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
 
     # model
     model_path: str = os.path.join(save_models_folder, "unet_l4.json")
@@ -61,8 +69,8 @@ if __name__ == "__main__":
 
     # generator
     batch_size: int = 1
-    image_folder: str = os.path.join(prediction_dataset_folder, "image", "current")
-    label_folder: str = os.path.join(prediction_dataset_folder, "semantic_label")
+    image_folder: str = os.path.join(test_dataset_folder, "image", "current")
+    label_folder: str = os.path.join(test_dataset_folder, "semantic_label")
 
     img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,
