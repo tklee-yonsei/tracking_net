@@ -1,16 +1,19 @@
 import math
 import os
+import time
 
+import common_py
 import cv2
 import keras
 import numpy as np
 import tensorflow as tf
 import toolz
+from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
 from idl.model_io import load_model
-from utils.image_transform import gray_image_apply_clahe, img_to_ratio
+from utils.image_transform import gray_image_apply_clahe, img_to_ratio, ratio_to_img
 
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -25,12 +28,14 @@ if gpus:
 
 
 def save_batch_transformed_img(
-    index_num: int, batch_num: int, transformed_batch_img: np.ndarray
+    target_folder: str,
+    index_num: int,
+    batch_num: int,
+    transformed_batch_img: np.ndarray,
 ) -> None:
     # 이름
-    img_path = os.path.join(".")
     img_name = "img_transformed_{:04d}_{:02d}.png".format(index_num, batch_num)
-    img_fullpath = os.path.join(img_path, img_name)
+    img_fullpath = os.path.join(target_folder, img_name)
 
     # 저장
     cv2.imwrite(img_fullpath, transformed_batch_img)
@@ -38,7 +43,9 @@ def save_batch_transformed_img(
 
 if __name__ == "__main__":
     # 사용한 모델, 사용한 트레이닝 Prediction 날짜
-    prediction_id: str = "_testest"
+    model: str = "unet_l4"
+    run_id: str = time.strftime("%Y_%m%d-%H_%M_%S")
+    prediction_id: str = "_predict__model_{}__run_{}".format(model, run_id)
 
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
@@ -48,6 +55,8 @@ if __name__ == "__main__":
     prediction_dataset_folder: str = os.path.join(
         base_data_folder, "ivan_filtered_test"
     )
+    prediction_result_folder: str = os.path.join(base_data_folder, prediction_id)
+    common_py.create_folder(prediction_result_folder)
 
     # model
     model_path: str = os.path.join(save_models_folder, "unet_l4.json")
@@ -66,7 +75,7 @@ if __name__ == "__main__":
     #     batch_size=batch_size,
     #     color_mode="grayscale",
     #     shuffle=False,
-    #     save_to_dir=".",
+    #     save_to_dir=prediction_result_folder,
     #     save_prefix="pre_processed_img_",
     # )
     # idg = ImageDataGenerator(
@@ -79,7 +88,7 @@ if __name__ == "__main__":
     # )
     # image_generator = img_flow.get_iterator(generator=idg)
     # image_transformed_generator = generate_iterator_and_transform(
-    #     image_generator=image_generator, transform_function_for_all=img_normalization,
+    #     image_generator=image_generator, transform_function_for_all=img_to_ratio,
     # )
 
     # 2
@@ -102,7 +111,9 @@ if __name__ == "__main__":
             ),
             None,
         ),
-        each_transformed_image_save_function_optional=save_batch_transformed_img,
+        each_transformed_image_save_function_optional=toolz.curry(
+            save_batch_transformed_img
+        )(prediction_result_folder),
         transform_function_for_all=img_to_ratio,
     )
 
@@ -118,5 +129,6 @@ if __name__ == "__main__":
     for index, result in enumerate(results):
         name: str = os.path.basename(filenames[index])
         print("Post Processing for {}".format(name))
+        full_path: str = os.path.join(prediction_result_folder, name)
         result = ratio_to_img(result)
-        cv2.imwrite(name, result)
+        cv2.imwrite(full_path, result)
