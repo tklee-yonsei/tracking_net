@@ -6,10 +6,9 @@ from keras.models import *
 from keras.optimizers import *
 
 
-def vanilla_unet(
-    pre_trained_weight_path: str = None,
-    input_size: Tuple[int, int, int] = (572, 572, 1),
-) -> Model:
+def vanilla_unet() -> Model:
+    input_size: Tuple[int, int, int] = (572, 572, 1)
+
     inputs = Input(input_size)
 
     # 572 -> 570, 1 -> 64
@@ -101,15 +100,5 @@ def vanilla_unet(
 
     # 388 -> 386, 2 -> 1
     outputs = Conv2D(1, 1, activation="sigmoid")(conv9)
-    model = Model(inputs=inputs, outputs=outputs)
 
-    model.compile(
-        optimizer=optimizers.Adam(lr=1e-4),
-        loss=losses.binary_crossentropy,
-        metrics=["accuracy"],
-    )
-
-    if pre_trained_weight_path:
-        model.load_weights(pre_trained_weight_path)
-
-    return model
+    return Model(inputs=inputs, outputs=outputs)

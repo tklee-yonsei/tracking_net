@@ -6,11 +6,10 @@ from keras.models import *
 from keras.optimizers import *
 
 
-def unet_l1(
-    pre_trained_weight_path: str = None,
-    filters: int = 16,
-    input_size: Tuple[int, int, int] = (256, 256, 1),
-) -> Model:
+def unet_l1() -> Model:
+    input_size: Tuple[int, int, int] = (256, 256, 1)
+    filters: int = 16
+
     inputs = Input(input_size)
 
     # 256 -> 256, 1 -> 64
@@ -85,15 +84,4 @@ def unet_l1(
     # 256 -> 256, 2 -> 1
     conv6 = Conv2D(1, 1, activation="sigmoid")(conv5)
 
-    model = Model(inputs=inputs, outputs=conv6)
-
-    model.compile(
-        optimizer=optimizers.Adam(lr=1e-4),
-        loss=losses.binary_crossentropy,
-        metrics=["accuracy"],
-    )
-
-    if pre_trained_weight_path:
-        model.load_weights(pre_trained_weight_path)
-
-    return model
+    return Model(inputs=inputs, outputs=conv6)
