@@ -42,10 +42,10 @@ def save_batch_transformed_img(
 
 
 if __name__ == "__main__":
-    # 사용한 모델, 사용한 트레이닝 Prediction 날짜
-    model: str = "unet_l4"
-    run_id: str = time.strftime("%Y_%m%d-%H_%M_%S")
-    prediction_id: str = "_predict__model_{}__run_{}".format(model, run_id)
+    # prediction_id: 사용한 모델, Prediction 날짜
+    model_name: str = "unet_l4"
+    run_id: str = time.strftime("%Y%m%d-%H%M%S")
+    prediction_id: str = "_predict__model_{}__run_{}".format(model_name, run_id)
 
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
@@ -120,10 +120,10 @@ if __name__ == "__main__":
     filenames = image_generator.filenames
     nb_samples = math.ceil(image_generator.samples / batch_size)
 
-    prediction_generator = image_transformed_generator
+    input_generator = map(list, zip(image_transformed_generator))
 
     # predict
-    results = model.predict_generator(prediction_generator, steps=nb_samples, verbose=1)
+    results = model.predict_generator(input_generator, steps=nb_samples, verbose=1)
 
     # 후처리 및 저장
     for index, result in enumerate(results):

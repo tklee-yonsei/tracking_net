@@ -1,8 +1,11 @@
 import math
 import os
+import time
 
+import common_py
 import cv2
 import keras
+from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import tensorflow as tf
 import toolz
@@ -23,22 +26,31 @@ if gpus:
         # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
         print(e)
 
+# def test_with_generator():
+
 
 def save_batch_transformed_img(
-    index_num: int, batch_num: int, transformed_batch_img: np.ndarray
+    target_folder: str,
+    prefix: str,
+    index_num: int,
+    batch_num: int,
+    transformed_batch_img: np.ndarray,
 ) -> None:
     # 이름
-    img_path = os.path.join(".")
-    img_name = "img_transformed_{:04d}_{:02d}.png".format(index_num, batch_num)
-    img_fullpath = os.path.join(img_path, img_name)
+    img_name = "{}img_transformed_{:04d}_{:02d}.png".format(
+        prefix, index_num, batch_num
+    )
+    img_fullpath = os.path.join(target_folder, img_name)
 
     # 저장
     cv2.imwrite(img_fullpath, transformed_batch_img)
 
 
 if __name__ == "__main__":
-    # 사용한 모델, 사용한 트레이닝 Test 날짜
-    test_id: str = "_testest"
+    # test_id: 사용한 모델, Test 날짜
+    model_name: str = "unet_l4"
+    run_id: str = time.strftime("%Y%m%d-%H%M%S")
+    test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
 
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
@@ -46,6 +58,8 @@ if __name__ == "__main__":
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
 
     test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
+    test_result_folder: str = os.path.join(base_data_folder, test_id)
+    common_py.create_folder(test_result_folder)
 
     # model
     model_path: str = os.path.join(save_models_folder, "unet_l4.json")
@@ -74,8 +88,32 @@ if __name__ == "__main__":
             ),
             None,
         ),
+        each_transformed_image_save_function_optional=toolz.curry(
+            save_batch_transformed_img
+        )(test_result_folder, "image_"),
         transform_function_for_all=img_to_ratio,
     )
+
+    # img_flow: FlowFromDirectory = ImagesFromDirectory(
+    #     dataset_directory=image_folder,
+    #     batch_size=batch_size,
+    #     color_mode="grayscale",
+    #     shuffle=False,
+    #     save_to_dir=test_result_folder,
+    #     save_prefix="image_",
+    # )
+    # idg = ImageDataGenerator(
+    #     preprocessing_function=toolz.compose_left(
+    #         lambda _img: np.array(_img, dtype=np.uint8),
+    #         gray_image_apply_clahe,
+    #         lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+    #     ),
+    #     fill_mode="nearest",
+    # )
+    # image_generator = img_flow.get_iterator(generator=idg)
+    # image_transformed_generator = generate_iterator_and_transform(
+    #     image_generator=image_generator, transform_function_for_all=img_to_ratio,
+    # )
 
     label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=label_folder,
@@ -85,24 +123,48 @@ if __name__ == "__main__":
     )
     label_generator = label_flow.get_iterator()
     label_transformed_generator = generate_iterator_and_transform(
-        image_generator=label_generator, transform_function_for_all=img_to_ratio,
+        image_generator=label_generator,
+        each_image_transform_function=(None, None),
+        each_transformed_image_save_function_optional=toolz.curry(
+            save_batch_transformed_img
+        )(test_result_folder, "label_"),
+        transform_function_for_all=img_to_ratio,
     )
 
-    filenames = image_generator.filenames
-    nb_samples = math.ceil(image_generator.samples / batch_size)
+    # label_flow: FlowFromDirectory = ImagesFromDirectory(
+    #     dataset_directory=label_folder,
+    #     batch_size=batch_size,
+    #     color_mode="grayscale",
+    #     shuffle=False,
+    #     save_to_dir=test_result_folder,
+    #     save_prefix="label_",
+    # )
+    # label_idg = ImageDataGenerator()
+    # label_generator = label_flow.get_iterator(generator=label_idg)
+    # label_transformed_generator = generate_iterator_and_transform(
+    #     image_generator=label_generator, transform_function_for_all=img_to_ratio,
+    # )
 
     input_generator = map(list, zip(image_transformed_generator))
     output_generator = map(list, zip(label_transformed_generator))
     test_generator = zip(input_generator, output_generator)
 
+    samples = image_generator.samples
+    filenames = image_generator.filenames
+    nb_samples = math.ceil(samples / batch_size)
+    print("samples: {}".format(samples))
+    print("nb_samples: {}".format(nb_samples))
+
     # test
+    test_steps = samples // batch_size
     model.compile(
         optimizer=keras.optimizers.Adam(lr=1e-4),
         loss=keras.losses.binary_crossentropy,
         metrics=["accuracy"],
     )
+
     test_loss, test_acc = model.evaluate_generator(
-        test_generator, steps=nb_samples, verbose=1
+        test_generator, steps=test_steps, verbose=1, max_queue_size=1
     )
 
     print("test_loss: {}".format(test_loss))
