@@ -98,9 +98,9 @@ if __name__ == "__main__":
     filenames = image_generator.filenames
     nb_samples = math.ceil(image_generator.samples / batch_size)
 
-    # input_generator = map(list, image_transformed_generator)
-    # output_generator = map(list, label_transformed_generator)
-    test_generator = zip(image_transformed_generator, label_transformed_generator)
+    input_generator = map(list, zip(image_transformed_generator))
+    output_generator = map(list, zip(label_transformed_generator))
+    test_generator = zip(input_generator, output_generator)
 
     # test
     model.compile(
