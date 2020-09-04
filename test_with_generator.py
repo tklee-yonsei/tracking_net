@@ -152,8 +152,6 @@ if __name__ == "__main__":
     samples = image_generator.samples
     filenames = image_generator.filenames
     nb_samples = math.ceil(samples / batch_size)
-    print("samples: {}".format(samples))
-    print("nb_samples: {}".format(nb_samples))
 
     # test
     test_steps = samples // batch_size

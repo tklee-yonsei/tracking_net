@@ -68,7 +68,6 @@ if __name__ == "__main__":
 
     image_files = common_py.files_in_folder(image_folder)
     image_files = sorted(image_files)
-    print("image_files: {}".format(image_files))
 
     def xx(path, image_files):
         for image_file in image_files:
@@ -85,7 +84,6 @@ if __name__ == "__main__":
 
     label_files = common_py.files_in_folder(label_folder)
     label_files = sorted(label_files)
-    print("label_files: {}".format(label_files))
 
     def xx2(path, __label_files):
         for _label_file in __label_files:
