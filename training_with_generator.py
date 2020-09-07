@@ -22,7 +22,12 @@ from idl.callbacks_after_epoch import (
 )
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
 from idl.model_io import load_model
-from utils.image_transform import gray_image_apply_clahe, img_to_ratio
+from utils.image_transform import (
+    gray_image_apply_clahe,
+    img_resize,
+    img_to_minmax,
+    img_to_ratio,
+)
 
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -92,6 +97,7 @@ if __name__ == "__main__":
         each_image_transform_function=(
             toolz.compose_left(
                 lambda _img: np.array(_img, dtype=np.uint8),
+                lambda _img: img_resize(_img, (256, 256)),
                 gray_image_apply_clahe,
                 lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
             ),
@@ -110,6 +116,15 @@ if __name__ == "__main__":
     training_label_generator = training_label_flow.get_iterator()
     training_label_transformed_generator = generate_iterator_and_transform(
         image_generator=training_label_generator,
+        each_image_transform_function=(
+            toolz.compose_left(
+                lambda _img: np.array(_img, dtype=np.uint8),
+                lambda _img: img_resize(_img, (256, 256)),
+                lambda _img: img_to_minmax(_img, 127, (0, 255)),
+                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+            ),
+            None,
+        ),
         transform_function_for_all=img_to_ratio,
     )
 
@@ -133,6 +148,7 @@ if __name__ == "__main__":
         each_image_transform_function=(
             toolz.compose_left(
                 lambda _img: np.array(_img, dtype=np.uint8),
+                lambda _img: img_resize(_img, (256, 256)),
                 gray_image_apply_clahe,
                 lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
             ),
@@ -150,6 +166,15 @@ if __name__ == "__main__":
     validation_label_generator = validation_label_flow.get_iterator()
     validation_label_transformed_generator = generate_iterator_and_transform(
         image_generator=validation_label_generator,
+        each_image_transform_function=(
+            toolz.compose_left(
+                lambda _img: np.array(_img, dtype=np.uint8),
+                lambda _img: img_resize(_img, (256, 256)),
+                lambda _img: img_to_minmax(_img, 127, (0, 255)),
+                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+            ),
+            None,
+        ),
         transform_function_for_all=img_to_ratio,
     )
 
@@ -216,7 +241,6 @@ if __name__ == "__main__":
         validation_data=validation_generator,
         validation_steps=val_steps,
         validation_freq=val_freq,
-        class_weight=None,
         max_queue_size=10,
         workers=1,
         use_multiprocessing=False,

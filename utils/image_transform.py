@@ -4,6 +4,10 @@ import cv2
 import numpy as np
 
 
+def img_resize(img: np.ndarray, target_size: Tuple[int, int]):
+    return cv2.resize(img, target_size, interpolation=cv2.INTER_NEAREST)
+
+
 def gray_image_apply_clahe(
     gray_cv2_img: np.ndarray,
     clip_limit: float = 2.0,
