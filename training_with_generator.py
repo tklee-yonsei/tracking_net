@@ -53,6 +53,17 @@ def save_batch_transformed_img(
     cv2.imwrite(img_fullpath, transformed_batch_img)
 
 
+def mean_iou(y_true, y_pred):
+    from keras import backend as K
+
+    yt0 = y_true[:, :, :, 0]
+    yp0 = K.cast(y_pred[:, :, :, 0] > 0.5, "float32")
+    inter = tf.math.count_nonzero(tf.logical_and(tf.equal(yt0, 1), tf.equal(yp0, 1)))
+    union = tf.math.count_nonzero(tf.add(yt0, yp0))
+    iou = tf.where(tf.equal(union, 0), 1.0, tf.cast(inter / union, "float32"))
+    return iou
+
+
 if __name__ == "__main__":
     # training_id: 사용한 모델, Training 날짜
     model_name: str = "unet_l4"
@@ -201,7 +212,8 @@ if __name__ == "__main__":
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
             save_weights_folder,
-            training_id[1:] + ".epoch_{epoch:02d}-val_loss_{val_loss:.2f}.hdf5",
+            training_id[1:]
+            + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-val_mean_iou_{val_mean_iou:.3f}.hdf5",
         ),
         verbose=1,
         # save_best_only=True,
@@ -229,7 +241,7 @@ if __name__ == "__main__":
     model.compile(
         optimizer=optimizers.Adam(lr=1e-4),
         loss=losses.binary_crossentropy,
-        metrics=["accuracy"],
+        metrics=["accuracy", mean_iou],
     )
 
     history: History = model.fit_generator(
