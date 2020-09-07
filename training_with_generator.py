@@ -58,6 +58,10 @@ if __name__ == "__main__":
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
+
+    common_py.create_folder(save_models_folder)
+    common_py.create_folder(save_weights_folder)
+
     training_dataset_folder: str = os.path.join(
         base_data_folder, "training_original_20_edge10"
     )
@@ -165,14 +169,14 @@ if __name__ == "__main__":
     val_steps: int = val_samples // val_batch_size
 
     apply_callbacks_after: int = 0
-    # early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
+    early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
     # reduce_lr_patience: int = 10
     # reduce_lr_cooldown: int = 5
 
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
             save_weights_folder,
-            training_id[1:] + "_weights.{epoch:02d}-{val_loss:.2f}.hdf5",
+            training_id[1:] + ".epoch_{epoch:02d}-val_loss_{val_loss:.2f}.hdf5",
         ),
         verbose=1,
         # save_best_only=True,
@@ -181,9 +185,9 @@ if __name__ == "__main__":
     # model_every_checkpoint: Callback = ModelCheckpoint(
     #     filepath=checkpoint_path, verbose=1, save_weights_only=True, period=5
     # )
-    # early_stopping: Callback = EarlyStoppingAfter(
-    #     patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
-    # )
+    early_stopping: Callback = EarlyStoppingAfter(
+        patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
+    )
     # reduce_lr: Callback = ReduceLROnPlateauAfter(
     #     patience=reduce_lr_patience,
     #     cooldown=reduce_lr_cooldown,
@@ -191,7 +195,7 @@ if __name__ == "__main__":
     #     after_epoch=apply_callbacks_after,
     # )
     # callback_list: List[Callback] = [model_checkpoint, early_stopping, reduce_lr]
-    callback_list: List[Callback] = [model_checkpoint]
+    callback_list: List[Callback] = [model_checkpoint, early_stopping]
 
     # model
     model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
