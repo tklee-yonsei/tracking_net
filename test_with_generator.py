@@ -62,7 +62,7 @@ if __name__ == "__main__":
     common_py.create_folder(test_result_folder)
 
     # model
-    model_path: str = os.path.join(save_models_folder, "unet_l4.json")
+    model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     model: keras.models.Model = load_model(model_path, weights_path)
 
