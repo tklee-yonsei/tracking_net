@@ -6,6 +6,7 @@ from typing import List
 import common_py
 import cv2
 import keras
+import keras.backend as K
 import numpy as np
 import tensorflow as tf
 import toolz
@@ -53,8 +54,6 @@ def save_batch_transformed_img(
 
 
 def mean_iou(y_true, y_pred):
-    from keras import backend as K
-
     yt0 = y_true[:, :, :, 0]
     yp0 = K.cast(y_pred[:, :, :, 0] > 0.5, "float32")
     inter = tf.math.count_nonzero(tf.logical_and(tf.equal(yt0, 1), tf.equal(yp0, 1)))
