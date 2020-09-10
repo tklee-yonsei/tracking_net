@@ -5,13 +5,14 @@ import time
 import common_py
 import cv2
 import keras
-from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import tensorflow as tf
 import toolz
+from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
+from idl.metrics import mean_iou
 from idl.model_io import load_model
 from utils.image_transform import gray_image_apply_clahe, img_to_ratio
 
@@ -25,8 +26,6 @@ if gpus:
     except RuntimeError as e:
         # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
         print(e)
-
-# def test_with_generator():
 
 
 def save_batch_transformed_img(
@@ -158,12 +157,13 @@ if __name__ == "__main__":
     model.compile(
         optimizer=keras.optimizers.Adam(lr=1e-4),
         loss=keras.losses.binary_crossentropy,
-        metrics=["accuracy"],
+        metrics=["accuracy", mean_iou],
     )
 
-    test_loss, test_acc = model.evaluate_generator(
+    test_loss, test_acc, test_mean_iou = model.evaluate_generator(
         test_generator, steps=test_steps, verbose=1, max_queue_size=1
     )
 
     print("test_loss: {}".format(test_loss))
     print("test_acc: {}".format(test_acc))
+    print("test_mean_iou: {}".format(test_mean_iou))

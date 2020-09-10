@@ -1,4 +1,3 @@
-import math
 import os
 import time
 from typing import List
@@ -6,7 +5,6 @@ from typing import List
 import common_py
 import cv2
 import keras
-import keras.backend as K
 import numpy as np
 import tensorflow as tf
 import toolz
@@ -15,12 +13,9 @@ from keras import losses, optimizers
 from keras.callbacks import Callback, History
 
 from idl.batch_transform import generate_iterator_and_transform
-from idl.callbacks_after_epoch import (
-    EarlyStoppingAfter,
-    ModelCheckpointAfter,
-    ReduceLROnPlateauAfter,
-)
+from idl.callbacks_after_epoch import EarlyStoppingAfter, ModelCheckpointAfter
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
+from idl.metrics import mean_iou
 from idl.model_io import load_model
 from utils.image_transform import (
     gray_image_apply_clahe,
@@ -51,15 +46,6 @@ def save_batch_transformed_img(
 
     # 저장
     cv2.imwrite(img_fullpath, transformed_batch_img)
-
-
-def mean_iou(y_true, y_pred):
-    yt0 = y_true[:, :, :, 0]
-    yp0 = K.cast(y_pred[:, :, :, 0] > 0.5, "float32")
-    inter = tf.math.count_nonzero(tf.logical_and(tf.equal(yt0, 1), tf.equal(yp0, 1)))
-    union = tf.math.count_nonzero(tf.add(yt0, yp0))
-    iou = tf.where(tf.equal(union, 0), 1.0, tf.cast(inter / union, "float32"))
-    return iou
 
 
 if __name__ == "__main__":
@@ -195,7 +181,6 @@ if __name__ == "__main__":
     # --------
     training_num_of_epochs: int = 200
     training_samples: int = training_image_generator.samples
-    # training_steps_per_epoch: int = 1000
     training_steps_per_epoch: int = training_samples // batch_size
 
     val_freq: int = 1
@@ -204,8 +189,6 @@ if __name__ == "__main__":
 
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
-    # reduce_lr_patience: int = 10
-    # reduce_lr_cooldown: int = 5
 
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
@@ -220,13 +203,6 @@ if __name__ == "__main__":
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
-    # reduce_lr: Callback = ReduceLROnPlateauAfter(
-    #     patience=reduce_lr_patience,
-    #     cooldown=reduce_lr_cooldown,
-    #     verbose=1,
-    #     after_epoch=apply_callbacks_after,
-    # )
-    # callback_list: List[Callback] = [model_checkpoint, early_stopping, reduce_lr]
     callback_list: List[Callback] = [model_checkpoint, early_stopping]
 
     # model

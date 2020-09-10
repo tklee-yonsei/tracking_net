@@ -1,4 +1,3 @@
-import math
 import os
 import time
 
@@ -9,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 import toolz
 
+from idl.metrics import mean_iou
 from idl.model_io import load_model
 from utils.image_transform import gray_image_apply_clahe, img_to_ratio
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     image_files = common_py.files_in_folder(image_folder)
     image_files = sorted(image_files)
 
-    def xx(path, image_files):
+    def adjust_image(path, image_files):
         for image_file in image_files:
             img = cv2.imread(os.path.join(path, image_file), cv2.IMREAD_GRAYSCALE)
             pre_processed_img = toolz.compose_left(
@@ -80,12 +80,12 @@ if __name__ == "__main__":
             )(img)
             yield pre_processed_img
 
-    image_transformed_generator = xx(image_folder, image_files)
+    image_transformed_generator = adjust_image(image_folder, image_files)
 
     label_files = common_py.files_in_folder(label_folder)
     label_files = sorted(label_files)
 
-    def xx2(path, __label_files):
+    def adjust_label(path, __label_files):
         for _label_file in __label_files:
             img2 = cv2.imread(os.path.join(path, _label_file), cv2.IMREAD_GRAYSCALE)
             pre_processed_img2 = toolz.compose_left(
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             )(img2)
             yield pre_processed_img2
 
-    label_transformed_generator = xx2(label_folder, label_files)
+    label_transformed_generator = adjust_label(label_folder, label_files)
 
     input_generator = map(list, zip(image_transformed_generator))
     output_generator = map(list, zip(label_transformed_generator))
@@ -106,12 +106,13 @@ if __name__ == "__main__":
     model.compile(
         optimizer=keras.optimizers.Adam(lr=1e-4),
         loss=keras.losses.binary_crossentropy,
-        metrics=["accuracy"],
+        metrics=["accuracy", mean_iou],
     )
 
-    test_loss, test_acc = model.evaluate_generator(
+    test_loss, test_acc, test_mean_iou = model.evaluate_generator(
         test_generator, steps=test_steps, verbose=1, max_queue_size=1
     )
 
     print("test_loss: {}".format(test_loss))
     print("test_acc: {}".format(test_acc))
+    print("test_mean_iou: {}".format(test_mean_iou))
