@@ -2,16 +2,15 @@ import math
 import os
 import time
 from typing import List
-import common_py
-from common_py.dl.report import acc_loss_plot
 
+import common_py
 import cv2
 import keras
-from keras import optimizers
-from keras import losses
 import numpy as np
 import tensorflow as tf
 import toolz
+from common_py.dl.report import acc_loss_plot
+from keras import losses, optimizers
 from keras.callbacks import Callback, History
 
 from idl.batch_transform import generate_iterator_and_transform
@@ -219,9 +218,6 @@ if __name__ == "__main__":
         # save_best_only=True,
         after_epoch=apply_callbacks_after,
     )
-    # model_every_checkpoint: Callback = ModelCheckpoint(
-    #     filepath=checkpoint_path, verbose=1, save_weights_only=True, period=5
-    # )
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
@@ -260,27 +256,11 @@ if __name__ == "__main__":
         initial_epoch=0,
     )
 
-    (history_target_folder, acc_plot_image_name, loss_plot_image_name,) = acc_loss_plot(
-        history.history["categorical_accuracy"],
+    history_target_folder, acc_plot_image_name, loss_plot_image_name = acc_loss_plot(
+        history.history["accuracy"],
         history.history["loss"],
-        history.history["val_categorical_accuracy"],
+        history.history["val_accuracy"],
         history.history["val_loss"],
         training_id[1:],
         save_weights_folder,
     )
-
-    # filenames = image_generator.filenames
-    # nb_samples = math.ceil(image_generator.samples / batch_size)
-
-    # # test
-    # model.compile(
-    #     optimizer=keras.optimizers.Adam(lr=1e-4),
-    #     loss=keras.losses.binary_crossentropy,
-    #     metrics=["accuracy"],
-    # )
-    # test_loss, test_acc = model.evaluate_generator(
-    #     test_generator, steps=nb_samples, verbose=1
-    # )
-
-    # print("test_loss: {}".format(test_loss))
-    # print("test_acc: {}".format(test_acc))
