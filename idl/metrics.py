@@ -1,5 +1,13 @@
 import keras.backend as K
 import tensorflow as tf
+from keras.metrics import MeanMetricWrapper
+
+
+class BinaryClassMeanIoU(MeanMetricWrapper):
+    def __init__(self, name="mean_iou", dtype=None, threshold=0.5):
+        super(BinaryClassMeanIoU, self).__init__(
+            binary_class_mean_iou, name, dtype=dtype, threshold=threshold
+        )
 
 
 def binary_class_mean_iou(y_true, y_pred, threshold=0.5):

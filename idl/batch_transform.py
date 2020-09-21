@@ -74,6 +74,7 @@ def generate_iterator_and_transform(
         배치 내 이미지 변환 함수. 변환 함수가 지정되지 않으면, 변환 없이 그냥 내보냅니다.
     each_transformed_image_save_function_optional : Optional[Callable[[int, int, np.ndarray], None]], optional
         샘플 인덱스 번호, 배치 번호 및 이미지를 입력으로 하는 저장 함수, by default None
+        `each_image_transform_function()` 메서드가 존재해야 동작합니다.
     transform_function_for_all : Optional[Callable[[np.ndarray], np.ndarray]], optional
         변환 함수. 배치 전체에 대한 변환 함수
 

@@ -11,11 +11,17 @@ from keras.layers import (
     UpSampling2D,
     concatenate,
 )
+from keras.metrics import Metric
 from keras.models import Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, Optimizer
 
-from idl.metrics import binary_class_mean_iou
-from idl.model_manager import LossDescriptor, ModelDescriptor, compile_model
+from idl.metrics import BinaryClassMeanIoU
+from idl.model_manager import (
+    LossDescriptor,
+    ModelDescriptor,
+    ModelHelper,
+    compile_model,
+)
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
@@ -26,200 +32,210 @@ unet_l4_loss_descriptors_default: List[LossDescriptor] = [
 ]
 
 
-def unet_l4_compile(
-    model: Model,
-    model_descriptor=unet_l4_model_descriptor_default,
-    optimizer=Adam(lr=1e-4),
-    loss_list=unet_l4_loss_descriptors_default,
-    metrics=[keras.metrics.BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
-    sample_weight_mode=None,
-    weighted_metrics=None,
-    target_tensors=None,
-    **kwargs
-):
-    compile_model(
-        model,
-        model_descriptor=model_descriptor,
-        optimizer=optimizer,
-        loss_list=loss_list,
-        metrics=metrics,
-        sample_weight_mode=sample_weight_mode,
-        weighted_metrics=weighted_metrics,
-        target_tensors=target_tensors,
+class UnetL4ModelHelper(ModelHelper):
+    def __init__(
+        self,
+        descriptor: ModelDescriptor = unet_l4_model_descriptor_default,
+        alpha: float = 1.0,
+    ):
+        super().__init__(descriptor, alpha)
+
+    def get_model(self) -> Model:
+        input_size: Tuple[int, int, int] = self.descriptor.inputs[0][1]
+        filters: int = 16
+
+        inputs = Input(shape=input_size, name=self.descriptor.inputs[0][0])
+
+        # 256 -> 256, 1 -> 64
+        conv1: Layer = Conv2D(
+            filters * 4,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(inputs)
+        # 256 -> 256, 64 -> 64
+        conv1: Layer = Conv2D(
+            filters * 4,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv1)
+        # 256 -> 128, 64 -> 64
+        pool1: Layer = MaxPooling2D(pool_size=(2, 2))(conv1)
+
+        # 128 -> 128, 64 -> 128
+        conv2: Layer = Conv2D(
+            filters * 8,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(pool1)
+        # 128 -> 128, 128 -> 128
+        conv2: Layer = Conv2D(
+            filters * 8,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv2)
+        # 128 -> 64, 128 -> 128
+        pool2: Layer = MaxPooling2D(pool_size=(2, 2))(conv2)
+
+        # 64 -> 64, 128 -> 256
+        conv3: Layer = Conv2D(
+            filters * 16,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(pool2)
+        # 64 -> 64, 256 -> 256
+        conv3 = Conv2D(
+            filters * 16,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv3)
+        # 64 -> 32, 256 -> 256
+        pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
+
+        # 32 -> 32, 256 -> 512
+        conv4 = Conv2D(
+            filters * 32,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(pool3)
+        # 32 -> 32, 512 -> 512
+        conv4 = Conv2D(
+            filters * 32,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv4)
+        # 32 -> 32, 512 -> 512
+        drop4 = Dropout(0.5)(conv4)
+
+        # 32 -> 64, 512 -> 256
+        up7 = Conv2D(
+            filters * 16,
+            2,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(UpSampling2D(size=(2, 2))(drop4))
+        # (64, 64) -> 64, (256, 256) -> 512
+        merge7 = concatenate([conv3, up7], axis=3)
+        # 64 -> 64, 512 -> 256
+        conv7 = Conv2D(
+            filters * 16,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(merge7)
+        # 64 -> 64, 256 -> 256
+        conv7 = Conv2D(
+            filters * 16,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv7)
+
+        # 64 -> 128, 256 -> 128
+        up8 = Conv2D(
+            filters * 8,
+            2,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(UpSampling2D(size=(2, 2))(conv7))
+        # (128, 128) -> 128, (128, 128) -> 256
+        merge8 = concatenate([conv2, up8], axis=3)
+        # 128 -> 128, 256 -> 128
+        conv8 = Conv2D(
+            filters * 8,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(merge8)
+        # 128 -> 128, 128 -> 128
+        conv8 = Conv2D(
+            filters * 8,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv8)
+
+        # 128 -> 256, 128 -> 64
+        up9 = Conv2D(
+            filters * 4,
+            2,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(UpSampling2D(size=(2, 2))(conv8))
+        # (256, 256) -> 256, (64, 64) -> 128
+        merge9 = concatenate([conv1, up9], axis=3)
+        # 256 -> 256, 128 -> 64
+        conv9 = Conv2D(
+            filters * 4,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(merge9)
+        # 256 -> 256, 64 -> 64
+        conv9 = Conv2D(
+            filters * 4,
+            3,
+            activation="relu",
+            padding="same",
+            kernel_initializer="he_normal",
+        )(conv9)
+
+        # 256 -> 256, 64 -> 2
+        conv9 = Conv2D(
+            2, 3, activation="relu", padding="same", kernel_initializer="he_normal"
+        )(conv9)
+        # 256 -> 256, 2 -> 1
+        conv10 = Conv2D(1, 1, name=self.descriptor.outputs[0][0], activation="sigmoid")(
+            conv9
+        )
+
+        return Model(inputs=[inputs], outputs=[conv10])
+
+    def compile_model(
+        self,
+        model: Model,
+        optimizer: Optimizer = Adam(lr=1e-4),
+        loss_list: List[LossDescriptor] = unet_l4_loss_descriptors_default,
+        metrics: List[Metric] = [
+            keras.metrics.BinaryAccuracy(name="accuracy"),
+            BinaryClassMeanIoU(name="mean_iou"),
+        ],
+        sample_weight_mode=None,
+        weighted_metrics=None,
+        target_tensors=None,
         **kwargs
-    )
-
-
-def unet_l4(
-    descriptor: ModelDescriptor = unet_l4_model_descriptor_default, alpha: float = 1.0
-) -> Model:
-    input_size: Tuple[int, int, int] = descriptor.inputs[0][1]
-    filters: int = 16
-
-    inputs = Input(shape=input_size, name=descriptor.inputs[0][0])
-
-    # 256 -> 256, 1 -> 64
-    conv1: Layer = Conv2D(
-        filters * 4,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(inputs)
-    # 256 -> 256, 64 -> 64
-    conv1: Layer = Conv2D(
-        filters * 4,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv1)
-    # 256 -> 128, 64 -> 64
-    pool1: Layer = MaxPooling2D(pool_size=(2, 2))(conv1)
-
-    # 128 -> 128, 64 -> 128
-    conv2: Layer = Conv2D(
-        filters * 8,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(pool1)
-    # 128 -> 128, 128 -> 128
-    conv2: Layer = Conv2D(
-        filters * 8,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv2)
-    # 128 -> 64, 128 -> 128
-    pool2: Layer = MaxPooling2D(pool_size=(2, 2))(conv2)
-
-    # 64 -> 64, 128 -> 256
-    conv3: Layer = Conv2D(
-        filters * 16,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(pool2)
-    # 64 -> 64, 256 -> 256
-    conv3 = Conv2D(
-        filters * 16,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv3)
-    # 64 -> 32, 256 -> 256
-    pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
-
-    # 32 -> 32, 256 -> 512
-    conv4 = Conv2D(
-        filters * 32,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(pool3)
-    # 32 -> 32, 512 -> 512
-    conv4 = Conv2D(
-        filters * 32,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv4)
-    # 32 -> 32, 512 -> 512
-    drop4 = Dropout(0.5)(conv4)
-
-    # 32 -> 64, 512 -> 256
-    up7 = Conv2D(
-        filters * 16,
-        2,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(UpSampling2D(size=(2, 2))(drop4))
-    # (64, 64) -> 64, (256, 256) -> 512
-    merge7 = concatenate([conv3, up7], axis=3)
-    # 64 -> 64, 512 -> 256
-    conv7 = Conv2D(
-        filters * 16,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(merge7)
-    # 64 -> 64, 256 -> 256
-    conv7 = Conv2D(
-        filters * 16,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv7)
-
-    # 64 -> 128, 256 -> 128
-    up8 = Conv2D(
-        filters * 8,
-        2,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(UpSampling2D(size=(2, 2))(conv7))
-    # (128, 128) -> 128, (128, 128) -> 256
-    merge8 = concatenate([conv2, up8], axis=3)
-    # 128 -> 128, 256 -> 128
-    conv8 = Conv2D(
-        filters * 8,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(merge8)
-    # 128 -> 128, 128 -> 128
-    conv8 = Conv2D(
-        filters * 8,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv8)
-
-    # 128 -> 256, 128 -> 64
-    up9 = Conv2D(
-        filters * 4,
-        2,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(UpSampling2D(size=(2, 2))(conv8))
-    # (256, 256) -> 256, (64, 64) -> 128
-    merge9 = concatenate([conv1, up9], axis=3)
-    # 256 -> 256, 128 -> 64
-    conv9 = Conv2D(
-        filters * 4,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(merge9)
-    # 256 -> 256, 64 -> 64
-    conv9 = Conv2D(
-        filters * 4,
-        3,
-        activation="relu",
-        padding="same",
-        kernel_initializer="he_normal",
-    )(conv9)
-
-    # 256 -> 256, 64 -> 2
-    conv9 = Conv2D(
-        2, 3, activation="relu", padding="same", kernel_initializer="he_normal"
-    )(conv9)
-    # 256 -> 256, 2 -> 1
-    conv10 = Conv2D(1, 1, name=descriptor.outputs[0][0], activation="sigmoid")(conv9)
-
-    return Model(inputs=[inputs], outputs=[conv10])
+    ):
+        super().compile_model(
+            model=model,
+            optimizer=optimizer,
+            loss_list=loss_list,
+            metrics=metrics,
+            model_descriptor=self.descriptor,
+            sample_weight_mode=sample_weight_mode,
+            weighted_metrics=weighted_metrics,
+            target_tensors=target_tensors,
+            **kwargs
+        )

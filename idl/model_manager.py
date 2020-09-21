@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from keras.losses import Loss
 from keras.metrics import Metric
@@ -55,3 +55,39 @@ def compile_model(
         target_tensors=target_tensors,
         **kwargs
     )
+
+
+class ModelHelper:
+    def __init__(self, descriptor: ModelDescriptor, alpha: float = 1.0):
+        self.descriptor = descriptor
+        self.alpha = alpha
+
+    def get_model(self) -> Model:
+        raise NotImplementedError
+
+    def compile_model(
+        self,
+        model: Model,
+        optimizer: Optimizer,
+        loss_list: List[LossDescriptor],
+        metrics: List[Metric] = [],
+        model_descriptor: Optional[ModelDescriptor] = None,
+        sample_weight_mode=None,
+        weighted_metrics=None,
+        target_tensors=None,
+        **kwargs
+    ):
+        _model_descriptor = (
+            self.descriptor if model_descriptor is None else model_descriptor
+        )
+        compile_model(
+            model,
+            model_descriptor=_model_descriptor,
+            optimizer=optimizer,
+            loss_list=loss_list,
+            metrics=metrics,
+            sample_weight_mode=sample_weight_mode,
+            weighted_metrics=weighted_metrics,
+            target_tensors=target_tensors,
+            **kwargs
+        )
