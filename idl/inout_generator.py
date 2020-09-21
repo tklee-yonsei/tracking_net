@@ -4,12 +4,9 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple
 import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
 
-# from idl.utils import check_hasattr
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory
 from utils.generator import zip_generators
-
-# import keras
 
 
 class InOutGenerator(ABC, metaclass=ABCMeta):

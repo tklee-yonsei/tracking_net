@@ -14,8 +14,8 @@ from keras.layers import (
 from keras.models import Model
 from keras.optimizers import Adam
 
-from idl.descriptor.model_manager import LossDescriptor, ModelDescriptor, compile_model
 from idl.metrics import binary_class_mean_iou
+from idl.model_manager import LossDescriptor, ModelDescriptor, compile_model
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]

@@ -1,4 +1,4 @@
-from idl.descriptor.inout_generator import BaseInOutGenerator, FlowManager
+from idl.inout_generator import BaseInOutGenerator, FlowManager
 import math
 import os
 import time

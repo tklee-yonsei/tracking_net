@@ -11,8 +11,8 @@ import toolz
 from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
-from idl.descriptor.inout_generator import BaseInOutGenerator, FlowManager
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
+from idl.inout_generator import BaseInOutGenerator, FlowManager
 from idl.metrics import binary_class_mean_iou
 from idl.model_io import load_model
 from utils.image_transform import gray_image_apply_clahe, img_to_ratio

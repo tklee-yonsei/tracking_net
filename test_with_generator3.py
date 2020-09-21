@@ -11,8 +11,8 @@ import toolz
 from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
-from idl.descriptor.inout_generator import BaseInOutGenerator, FlowManager
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
+from idl.inout_generator import BaseInOutGenerator, FlowManager
 from idl.metrics import binary_class_mean_iou
 from idl.model_io import load_model
 from models.semantic_segmentation.unet_l4.unet_l4 import unet_l4, unet_l4_compile

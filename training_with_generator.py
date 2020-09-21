@@ -1,4 +1,3 @@
-from idl.descriptor.inout_generator import BaseInOutGenerator, FlowManager
 import os
 import time
 from typing import List
@@ -16,6 +15,7 @@ from keras.callbacks import Callback, History
 from idl.batch_transform import generate_iterator_and_transform
 from idl.callbacks_after_epoch import EarlyStoppingAfter, ModelCheckpointAfter
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
+from idl.inout_generator import BaseInOutGenerator, FlowManager
 from idl.metrics import binary_class_mean_iou
 from idl.model_io import load_model
 from utils.image_transform import (
