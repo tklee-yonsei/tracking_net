@@ -10,9 +10,6 @@ from utils.optional import get_or_else
 def transform_for_batch(
     batch_img: np.ndarray,
     each_image_transform_function: Callable[[np.ndarray], np.ndarray],
-    each_image_transform_function_output_shape_optional: Optional[
-        Tuple[int, int, int]
-    ] = None,
     each_transformed_image_save_function_optional: Optional[
         Callable[[int, np.ndarray], None]
     ] = None,
@@ -26,8 +23,6 @@ def transform_for_batch(
         변환할 배치 이미지
     each_image_transform_function : Callable[[np.ndarray], np.ndarray]
         배치 내에서 변환할 함수
-    each_image_transform_function_output_shape_optional : Optional[Tuple[int, int, int]], optional
-        배치 내에서 변환 결과의 크기
     each_transformed_image_save_function_optional : Optional[Callable[[int, int, np.ndarray], None]], optional
         배치 내에서 변환 후, 이미지를 저장할 함수로, 배치 번호 및 이미지를 입력으로 받는 함수, by default None
 
@@ -36,27 +31,20 @@ def transform_for_batch(
     np.ndarray
         배치 변환이 완료된 이미지들의 배치
     """
-    if each_image_transform_function_output_shape_optional:
-        img_result = np.zeros(
-            (batch_img.shape[0],) + each_image_transform_function_output_shape_optional,
-            dtype=np.uint8,
-        )
-    else:
-        img_result = np.zeros(batch_img.shape, dtype=np.uint8,)
+    img_result_list = []
     for i in range(batch_img.shape[0]):
         current_batch_img = batch_img[i, :]
         current_batch_img = current_batch_img.astype(np.uint8)
-        img_result[i, :] = each_image_transform_function(current_batch_img)
+        current_transformed_img = each_image_transform_function(current_batch_img)
+        img_result_list.append(current_transformed_img)
         if each_transformed_image_save_function_optional:
-            each_transformed_image_save_function_optional(i, img_result[i, :])
-    return img_result
+            each_transformed_image_save_function_optional(i, current_transformed_img)
+    return np.array(img_result_list)
 
 
 def generate_iterator_and_transform(
     image_generator: Iterator,
-    each_image_transform_function: Optional[
-        Tuple[Callable[[np.ndarray], np.ndarray], Optional[Tuple[int, int, int]]]
-    ] = None,
+    each_image_transform_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     each_transformed_image_save_function_optional: Optional[
         Callable[[int, int, np.ndarray], None]
     ] = None,
@@ -72,8 +60,8 @@ def generate_iterator_and_transform(
     ----------
     image_generator : Iterator
         파일을 가져올 `Iterator`
-    each_image_transform_function : Optional[Tuple[[Callable[[np.ndarray], np.ndarray]], Optional[Tuple[int, int, int]]]], optional
-        배치 내 이미지 변환 함수 및 변환될 크기. 변환 함수가 지정되지 않으면, 변환 없이 그냥 내보냅니다.
+    each_image_transform_function : Optional[Callable[[np.ndarray], np.ndarray]], optional
+        배치 내 이미지 변환 함수. 변환 함수가 지정되지 않으면, 변환 없이 그냥 내보냅니다.
     each_transformed_image_save_function_optional : Optional[Callable[[int, int, np.ndarray], None]], optional
         샘플 인덱스 번호, 배치 번호 및 이미지를 입력으로 하는 저장 함수, by default None
     transform_function_for_all : Optional[Callable[[np.ndarray], np.ndarray]], optional
@@ -94,11 +82,8 @@ def generate_iterator_and_transform(
             batch_image = transform_for_batch(
                 batch_img=batch_image,
                 each_image_transform_function=get_or_else(
-                    each_image_transform_function[0], lambda v: v
+                    each_image_transform_function, lambda v: v
                 ),
-                each_image_transform_function_output_shape_optional=each_image_transform_function[
-                    1
-                ],
                 each_transformed_image_save_function_optional=each_transformed_image_save_function_optional2,
             )
             if transform_function_for_all:

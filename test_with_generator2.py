@@ -61,11 +61,7 @@ if __name__ == "__main__":
     test_result_folder: str = os.path.join(base_data_folder, test_id)
     common_py.create_folder(test_result_folder)
 
-    # model
-    model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
-    weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
-    model: keras.models.Model = load_model(model_path, weights_path)
-
+    # 1. Dataset
     # generator
     batch_size: int = 1
     image_folder: str = os.path.join(test_dataset_folder, "image", "current")
@@ -78,13 +74,10 @@ if __name__ == "__main__":
         color_mode="grayscale",
         shuffle=False,
     )
-    each_image_transform_function = (
-        toolz.compose_left(
-            lambda _img: np.array(_img, dtype=np.uint8),
-            gray_image_apply_clahe,
-            lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-        ),
-        None,
+    each_image_transform_function = toolz.compose_left(
+        lambda _img: np.array(_img, dtype=np.uint8),
+        gray_image_apply_clahe,
+        lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
     )
     each_transformed_image_save_function_optional = toolz.curry(
         save_batch_transformed_img
@@ -122,7 +115,12 @@ if __name__ == "__main__":
     filenames = in_out_generator.get_filenames()
     nb_samples = math.ceil(samples / batch_size)
 
-    # test
+    # 2. Model
+    model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
+    weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
+    model: keras.models.Model = load_model(model_path, weights_path)
+
+    # 3. Test
     test_steps = samples // batch_size
     model.compile(
         optimizer=keras.optimizers.Adam(lr=1e-4),

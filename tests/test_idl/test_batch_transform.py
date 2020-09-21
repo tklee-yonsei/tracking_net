@@ -28,15 +28,9 @@ class TestBatchTransform(TestCase):
         each_image_transform_function: Callable[
             [np.ndarray], np.ndarray
         ] = lambda v: v + 1
-        each_image_transform_function_output_shape_optional: Tuple[int, int, int] = (
-            4,
-            4,
-            3,
-        )
         transformed: np.ndarray = batch_transform.transform_for_batch(
             batch_img=batch_img,
             each_image_transform_function=each_image_transform_function,
-            each_image_transform_function_output_shape_optional=each_image_transform_function_output_shape_optional,
         )
 
         # Result

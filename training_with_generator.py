@@ -89,14 +89,11 @@ if __name__ == "__main__":
     training_image_generator = training_img_flow.get_iterator()
     training_image_transformed_generator = generate_iterator_and_transform(
         image_generator=training_image_generator,
-        each_image_transform_function=(
-            toolz.compose_left(
-                lambda _img: np.array(_img, dtype=np.uint8),
-                lambda _img: img_resize(_img, (256, 256)),
-                gray_image_apply_clahe,
-                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-            ),
-            None,
+        each_image_transform_function=toolz.compose_left(
+            lambda _img: np.array(_img, dtype=np.uint8),
+            lambda _img: img_resize(_img, (256, 256)),
+            gray_image_apply_clahe,
+            lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
         ),
         transform_function_for_all=img_to_ratio,
     )

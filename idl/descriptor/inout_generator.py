@@ -33,9 +33,7 @@ class FlowManager:
         self,
         flow_from_directory: FlowFromDirectory,
         image_data_generator: ImageDataGenerator = ImageDataGenerator(),
-        image_transform_function: Optional[
-            Tuple[Callable[[np.ndarray], np.ndarray], Optional[Tuple[int, int, int]]]
-        ] = None,
+        image_transform_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         each_transformed_image_save_function_optional: Optional[
             Callable[[int, int, np.ndarray], None]
         ] = None,
