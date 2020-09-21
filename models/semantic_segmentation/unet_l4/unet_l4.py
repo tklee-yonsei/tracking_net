@@ -1,16 +1,62 @@
-from typing import Tuple
+from typing import List, Tuple
 
+import keras
 from keras import losses, optimizers
-from keras.layers import *
-from keras.models import *
-from keras.optimizers import *
+from keras.layers import (
+    Conv2D,
+    Dropout,
+    Input,
+    Layer,
+    MaxPooling2D,
+    UpSampling2D,
+    concatenate,
+)
+from keras.models import Model
+from keras.optimizers import Adam
+
+from idl.descriptor.model_manager import LossDescriptor, ModelDescriptor, compile_model
+from idl.metrics import binary_class_mean_iou
+
+unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
+    inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
+)
+
+unet_l4_loss_descriptors_default: List[LossDescriptor] = [
+    LossDescriptor(loss=keras.losses.BinaryCrossentropy(), weight=1.0)
+]
 
 
-def unet_l4() -> Model:
-    input_size: Tuple[int, int, int] = (256, 256, 1)
+def unet_l4_compile(
+    model: Model,
+    model_descriptor=unet_l4_model_descriptor_default,
+    optimizer=Adam(lr=1e-4),
+    loss_list=unet_l4_loss_descriptors_default,
+    metrics=[keras.metrics.BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
+    sample_weight_mode=None,
+    weighted_metrics=None,
+    target_tensors=None,
+    **kwargs
+):
+    compile_model(
+        model,
+        model_descriptor=model_descriptor,
+        optimizer=optimizer,
+        loss_list=loss_list,
+        metrics=metrics,
+        sample_weight_mode=sample_weight_mode,
+        weighted_metrics=weighted_metrics,
+        target_tensors=target_tensors,
+        **kwargs
+    )
+
+
+def unet_l4(
+    descriptor: ModelDescriptor = unet_l4_model_descriptor_default, alpha: float = 1.0
+) -> Model:
+    input_size: Tuple[int, int, int] = descriptor.inputs[0][1]
     filters: int = 16
 
-    inputs = Input(input_size)
+    inputs = Input(shape=input_size, name=descriptor.inputs[0][0])
 
     # 256 -> 256, 1 -> 64
     conv1: Layer = Conv2D(
@@ -174,7 +220,6 @@ def unet_l4() -> Model:
         2, 3, activation="relu", padding="same", kernel_initializer="he_normal"
     )(conv9)
     # 256 -> 256, 2 -> 1
-    conv10 = Conv2D(1, 1, activation="sigmoid")(conv9)
+    conv10 = Conv2D(1, 1, name=descriptor.outputs[0][0], activation="sigmoid")(conv9)
 
     return Model(inputs=[inputs], outputs=[conv10])
-
