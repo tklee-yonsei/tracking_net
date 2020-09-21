@@ -34,8 +34,18 @@ def transform_for_batch(
     img_result_list = []
     for i in range(batch_img.shape[0]):
         current_batch_img = batch_img[i, :]
+
+        # 1. int8 정수 데이터 형태로 변환
         current_batch_img = current_batch_img.astype(np.uint8)
+        # 2. 변환 함수 적용
         current_transformed_img = each_image_transform_function(current_batch_img)
+        # 3. (그레이스케일 이미지의 경우,) 차원이 추가되지 않은 경우 추가
+        if len(current_transformed_img.shape) == 2:
+            current_transformed_img = np.reshape(
+                current_transformed_img,
+                (current_transformed_img.shape[0], current_transformed_img.shape[1], 1),
+            )
+
         img_result_list.append(current_transformed_img)
         if each_transformed_image_save_function_optional:
             each_transformed_image_save_function_optional(i, current_transformed_img)

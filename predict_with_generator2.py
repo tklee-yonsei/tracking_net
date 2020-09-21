@@ -75,11 +75,7 @@ if __name__ == "__main__":
         color_mode="grayscale",
         shuffle=False,
     )
-    each_image_transform_function = toolz.compose_left(
-        lambda _img: np.array(_img, dtype=np.uint8),
-        gray_image_apply_clahe,
-        lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-    )
+    each_image_transform_function = gray_image_apply_clahe
     each_transformed_image_save_function_optional = toolz.curry(
         save_batch_transformed_img
     )(prediction_result_folder)

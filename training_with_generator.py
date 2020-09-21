@@ -1,3 +1,4 @@
+from idl.descriptor.inout_generator import BaseInOutGenerator, FlowManager
 import os
 import time
 from typing import List
@@ -49,6 +50,8 @@ def save_batch_transformed_img(
 
 
 if __name__ == "__main__":
+    # Prepare
+    # -------
     # training_id: 사용한 모델, Training 날짜
     model_name: str = "unet_l4"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
@@ -69,85 +72,78 @@ if __name__ == "__main__":
         base_data_folder, "validation_original_20_edge10"
     )
 
-    # Generators
-    # ----------
-    batch_size: int = 8
+    # Dataset Generator
+    # -----------------
+    training_batch_size: int = 8
     val_batch_size: int = 8
     test_batch_size: int = 8
 
-    # training generator
+    # 1) Training
+    # image
     training_image_folder: str = os.path.join(training_dataset_folder, "image")
-    training_label_folder: str = os.path.join(training_dataset_folder, "label")
-
-    training_img_flow: FlowFromDirectory = ImagesFromDirectory(
+    validation_img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=training_image_folder,
-        batch_size=batch_size,
+        batch_size=training_batch_size,
         color_mode="grayscale",
         shuffle=True,
         seed=42,
     )
-    training_image_generator = training_img_flow.get_iterator()
-    training_image_transformed_generator = generate_iterator_and_transform(
-        image_generator=training_image_generator,
-        each_image_transform_function=toolz.compose_left(
-            lambda _img: np.array(_img, dtype=np.uint8),
-            lambda _img: img_resize(_img, (256, 256)),
-            gray_image_apply_clahe,
-            lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-        ),
+    training_each_image_transform_function = toolz.compose_left(
+        lambda _img: img_resize(_img, (256, 256)), gray_image_apply_clahe,
+    )
+    training_image_flow_manager: FlowManager = FlowManager(
+        flow_from_directory=validation_img_flow,
+        image_transform_function=training_each_image_transform_function,
         transform_function_for_all=img_to_ratio,
     )
+
+    # label
+    training_label_folder: str = os.path.join(training_dataset_folder, "label")
 
     training_label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=training_label_folder,
-        batch_size=batch_size,
+        batch_size=training_batch_size,
         color_mode="grayscale",
         shuffle=True,
         seed=42,
     )
-    training_label_generator = training_label_flow.get_iterator()
-    training_label_transformed_generator = generate_iterator_and_transform(
-        image_generator=training_label_generator,
-        each_image_transform_function=(
-            toolz.compose_left(
-                lambda _img: np.array(_img, dtype=np.uint8),
-                lambda _img: img_resize(_img, (256, 256)),
-                lambda _img: img_to_minmax(_img, 127, (0, 255)),
-                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-            ),
-            None,
-        ),
+    training_each_label_transform_function = toolz.compose_left(
+        lambda _img: img_resize(_img, (256, 256)),
+        lambda _img: img_to_minmax(_img, 127, (0, 255)),
+    )
+    training_label_flow_manager: FlowManager = FlowManager(
+        flow_from_directory=training_label_flow,
+        image_transform_function=training_each_label_transform_function,
         transform_function_for_all=img_to_ratio,
     )
 
-    training_input_generator = map(list, zip(training_image_transformed_generator))
-    training_output_generator = map(list, zip(training_label_transformed_generator))
-    training_generator = zip(training_input_generator, training_output_generator)
+    # inout
+    training_in_out_generator = BaseInOutGenerator(
+        input_flows=[training_image_flow_manager],
+        output_flows=[training_label_flow_manager],
+    )
+    training_generator = training_in_out_generator.get_generator()
 
-    # validation generator
+    # 2) Validation
+    # image
     validation_image_folder: str = os.path.join(validation_dataset_folder, "image")
-    validation_label_folder: str = os.path.join(validation_dataset_folder, "label")
-
     validation_img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=validation_image_folder,
         batch_size=val_batch_size,
         color_mode="grayscale",
         shuffle=False,
     )
-    validation_image_generator = validation_img_flow.get_iterator()
-    validation_image_transformed_generator = generate_iterator_and_transform(
-        image_generator=validation_image_generator,
-        each_image_transform_function=(
-            toolz.compose_left(
-                lambda _img: np.array(_img, dtype=np.uint8),
-                lambda _img: img_resize(_img, (256, 256)),
-                gray_image_apply_clahe,
-                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-            ),
-            None,
-        ),
+    validation_each_image_transform_function = toolz.compose_left(
+        lambda _img: img_resize(_img, (256, 256)), gray_image_apply_clahe,
+    )
+    validation_image_flow_manager: FlowManager = FlowManager(
+        flow_from_directory=validation_img_flow,
+        image_transform_function=validation_each_image_transform_function,
         transform_function_for_all=img_to_ratio,
     )
+
+    # label
+    validation_label_folder: str = os.path.join(validation_dataset_folder, "label")
 
     validation_label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=validation_label_folder,
@@ -155,35 +151,35 @@ if __name__ == "__main__":
         color_mode="grayscale",
         shuffle=False,
     )
-    validation_label_generator = validation_label_flow.get_iterator()
-    validation_label_transformed_generator = generate_iterator_and_transform(
-        image_generator=validation_label_generator,
-        each_image_transform_function=(
-            toolz.compose_left(
-                lambda _img: np.array(_img, dtype=np.uint8),
-                lambda _img: img_resize(_img, (256, 256)),
-                lambda _img: img_to_minmax(_img, 127, (0, 255)),
-                lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
-            ),
-            None,
-        ),
+    validation_each_label_transform_function = toolz.compose_left(
+        lambda _img: img_resize(_img, (256, 256)),
+        lambda _img: img_to_minmax(_img, 127, (0, 255)),
+    )
+    validation_label_flow_manager: FlowManager = FlowManager(
+        flow_from_directory=validation_label_flow,
+        image_transform_function=validation_each_label_transform_function,
         transform_function_for_all=img_to_ratio,
     )
 
-    validation_input_generator = map(list, zip(validation_image_transformed_generator))
-    validation_output_generator = map(list, zip(validation_label_transformed_generator))
-    validation_generator = zip(validation_input_generator, validation_output_generator)
+    # inout
+    validation_in_out_generator = BaseInOutGenerator(
+        input_flows=[validation_image_flow_manager],
+        output_flows=[validation_label_flow_manager],
+    )
+    validation_generator = validation_in_out_generator.get_generator()
 
     # Training
     # --------
+    # 1) Sample, Step
     training_num_of_epochs: int = 200
-    training_samples: int = training_image_generator.samples
-    training_steps_per_epoch: int = training_samples // batch_size
+    training_samples: int = training_in_out_generator.get_samples()
+    training_steps_per_epoch: int = training_samples // training_batch_size
 
     val_freq: int = 1
-    val_samples: int = validation_image_generator.samples
+    val_samples: int = validation_in_out_generator.get_samples()
     val_steps: int = val_samples // val_batch_size
 
+    # 2) Callbacks
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
 
@@ -202,16 +198,16 @@ if __name__ == "__main__":
     )
     callback_list: List[Callback] = [model_checkpoint, early_stopping]
 
-    # model
+    # 3) Model
     model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
     model: keras.models.Model = load_model(model_path)
-
     model.compile(
         optimizer=optimizers.Adam(lr=1e-4),
         loss=losses.binary_crossentropy,
         metrics=[keras.metrics.BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
     )
 
+    # 4) Training, Validation
     history: History = model.fit_generator(
         training_generator,
         callbacks=callback_list,
@@ -228,6 +224,7 @@ if __name__ == "__main__":
         initial_epoch=0,
     )
 
+    # 5) History
     history_target_folder, acc_plot_image_name, loss_plot_image_name = acc_loss_plot(
         history.history["accuracy"],
         history.history["loss"],
