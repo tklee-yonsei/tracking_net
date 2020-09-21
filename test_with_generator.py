@@ -12,7 +12,7 @@ from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
-from idl.metrics import mean_iou
+from idl.metrics import binary_class_mean_iou
 from idl.model_io import load_model
 from utils.image_transform import gray_image_apply_clahe, img_to_ratio
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     model.compile(
         optimizer=keras.optimizers.Adam(lr=1e-4),
         loss=keras.losses.binary_crossentropy,
-        metrics=["accuracy", mean_iou],
+        metrics=[keras.metrics.BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
     )
 
     test_loss, test_acc, test_mean_iou = model.evaluate_generator(

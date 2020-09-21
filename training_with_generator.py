@@ -15,7 +15,7 @@ from keras.callbacks import Callback, History
 from idl.batch_transform import generate_iterator_and_transform
 from idl.callbacks_after_epoch import EarlyStoppingAfter, ModelCheckpointAfter
 from idl.flow_directory import FlowFromDirectory, ImagesFromDirectory
-from idl.metrics import mean_iou
+from idl.metrics import binary_class_mean_iou
 from idl.model_io import load_model
 from utils.image_transform import (
     gray_image_apply_clahe,
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     model.compile(
         optimizer=optimizers.Adam(lr=1e-4),
         loss=losses.binary_crossentropy,
-        metrics=["accuracy", mean_iou],
+        metrics=[keras.metrics.BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
     )
 
     history: History = model.fit_generator(

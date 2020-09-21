@@ -1,5 +1,6 @@
-from typing import Tuple, List
+from typing import List, Tuple
 
+import keras
 from keras import losses, optimizers
 from keras.layers import *
 from keras.models import *
@@ -208,7 +209,7 @@ def model(
     model.compile(
         optimizer=optimizers.Adam(lr=1e-4),
         loss=losses.binary_crossentropy,
-        metrics=["accuracy"],
+        metrics=[keras.metrics.BinaryAccuracy(name="accuracy")],
     )
 
     if pre_trained_weights:
