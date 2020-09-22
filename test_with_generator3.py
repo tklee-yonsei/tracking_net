@@ -1,3 +1,4 @@
+from idl.model_io import load_model, save_model
 import math
 import os
 import time
@@ -54,11 +55,26 @@ if __name__ == "__main__":
 
     # 1. Model
     # --------
+    # model -> compile -> load weights
     model_helper = UnetL4ModelHelper()
-    # model
-    model = model_helper.get_model()
+    # model (from python code)
+    # model = model_helper.get_model()
+
+    # compile
+    # model = model_helper.compile_model(model)
+
+    # save model to json
+    # model_path: str = os.path.join(save_models_folder, "unet_l4_001.json")
+    # save_model(model_path, model)
+
+    # model (from json)
+    model_path: str = os.path.join(save_models_folder, "unet_l4_001.json")
+    weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
+    model = load_model(model_path)
+
     # compile
     model = model_helper.compile_model(model)
+
     # load weights
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     model.load_weights(weights_path)

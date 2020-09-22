@@ -15,7 +15,7 @@ from keras.metrics import Metric
 from keras.models import Model
 from keras.optimizers import Adam, Optimizer
 
-from idl.metrics import BinaryClassMeanIoU
+from idl.custom.metrics import BinaryClassMeanIoU
 from idl.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
