@@ -1,6 +1,7 @@
 from typing import List, Tuple
 
 import keras
+import tensorflow as tf
 from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from keras import losses, optimizers
@@ -16,6 +17,17 @@ from keras.layers import (
 from keras.metrics import Metric
 from keras.models import Model
 from keras.optimizers import Adam, Optimizer
+
+# GPU Setting
+gpus = tf.config.experimental.list_physical_devices("GPU")
+if gpus:
+    # 텐서플로가 첫 번째 GPU만 사용하도록 제한
+    try:
+        tf.config.experimental.set_visible_devices(gpus[0], "GPU")
+        tf.config.experimental.set_memory_growth(gpus[0], True)
+    except RuntimeError as e:
+        # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
+        print(e)
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
