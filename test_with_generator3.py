@@ -13,7 +13,7 @@ from idl.inout_generator import (
     save_batch_transformed_img,
 )
 from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
-from utils.image_transform import gray_image_apply_clahe, img_to_ratio
+from utils.image_transform import gray_image_apply_clahe, img_to_minmax, img_to_ratio
 
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -68,45 +68,52 @@ if __name__ == "__main__":
     batch_size: int = 1
 
     # 2.1 Input ---------
+    input_sizes = model_helper.model_descriptor.get_input_sizes()
     # a) image
-    img_flow: FlowFromDirectory = ImagesFromDirectory(
+    test_img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,
         batch_size=batch_size,
         color_mode="grayscale",
         shuffle=False,
     )
-    each_image_transform_function = gray_image_apply_clahe
-    each_transformed_image_save_function_optional = toolz.curry(
+    test_each_image_transform_function = gray_image_apply_clahe
+    test_each_transformed_image_save_function_optional = toolz.curry(
         save_batch_transformed_img
     )(test_result_folder, "image_")
-    image_flow_manager: FlowManager = FlowManager(
-        flow_from_directory=img_flow,
-        image_transform_function=each_image_transform_function,
-        each_transformed_image_save_function_optional=each_transformed_image_save_function_optional,
+    test_image_flow_manager: FlowManager = FlowManager(
+        flow_from_directory=test_img_flow,
+        resize_to=input_sizes[0],
+        image_transform_function=test_each_image_transform_function,
+        each_transformed_image_save_function_optional=test_each_transformed_image_save_function_optional,
         transform_function_for_all=img_to_ratio,
     )
 
     # 2.2 Output ---------
+    output_sizes = model_helper.model_descriptor.get_output_sizes()
     # a) label
-    label_flow: FlowFromDirectory = ImagesFromDirectory(
+    test_label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=label_folder,
         batch_size=batch_size,
         color_mode="grayscale",
         shuffle=False,
     )
-    each_transformed_label_save_function_optional = toolz.curry(
+    test_each_label_transform_function = toolz.compose_left(
+        lambda _img: img_to_minmax(_img, 127, (0, 255)),
+    )
+    test_each_transformed_label_save_function_optional = toolz.curry(
         save_batch_transformed_img
     )(test_result_folder, "label_")
-    label_flow_manager: FlowManager = FlowManager(
-        flow_from_directory=label_flow,
-        image_transform_function=lambda el: el,
-        each_transformed_image_save_function_optional=each_transformed_label_save_function_optional,
+    test_label_flow_manager: FlowManager = FlowManager(
+        flow_from_directory=test_label_flow,
+        resize_to=output_sizes[0],
+        image_transform_function=test_each_label_transform_function,
+        each_transformed_image_save_function_optional=test_each_transformed_label_save_function_optional,
         transform_function_for_all=img_to_ratio,
     )
 
     # 2.3 Inout ---------
     in_out_generator = BaseInOutGenerator(
-        input_flows=[image_flow_manager], output_flows=[label_flow_manager]
+        input_flows=[test_image_flow_manager], output_flows=[test_label_flow_manager]
     )
     test_generator = in_out_generator.get_generator()
 

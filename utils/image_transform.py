@@ -1,11 +1,40 @@
+from enum import Enum
 from typing import Tuple
 
 import cv2
 import numpy as np
 
 
-def img_resize(img: np.ndarray, target_size: Tuple[int, int]):
-    return cv2.resize(img, target_size, interpolation=cv2.INTER_NEAREST)
+class InterpolationEnum(Enum):
+    inter_nearest = "inter_nearest"  # a nearest-neighbor interpolation
+    inter_linear = "inter_linear"  # a bilinear interpolation (used by default)
+    inter_area = "inter_area"  # resampling using pixel area relation. It may be a preferred method for image decimation, as it gives moire’-free results. But when the image is zoomed, it is similar to the INTER_NEAREST method.
+    inter_cubic = "inter_cubic"  # a bicubic interpolation over 4×4 pixel neighborhood
+    inter_lanczos4 = (
+        "inter_lanczos4"  # a Lanczos interpolation over 8×8 pixel neighborhood
+    )
+
+    def get_cv2_interpolation(self):
+        if self == InterpolationEnum.inter_nearest:
+            return cv2.INTER_NEAREST
+        elif self == InterpolationEnum.inter_linear:
+            return cv2.INTER_LINEAR
+        elif self == InterpolationEnum.inter_area:
+            return cv2.INTER_AREA
+        elif self == InterpolationEnum.inter_cubic:
+            return cv2.INTER_CUBIC
+        elif self == InterpolationEnum.inter_lanczos4:
+            return cv2.INTER_LANCZOS4
+
+
+def img_resize(
+    img: np.ndarray,
+    target_size: Tuple[int, int],
+    interpolation: InterpolationEnum = InterpolationEnum.inter_nearest,
+):
+    return cv2.resize(
+        img, target_size, interpolation=interpolation.get_cv2_interpolation()
+    )
 
 
 def gray_image_apply_clahe(

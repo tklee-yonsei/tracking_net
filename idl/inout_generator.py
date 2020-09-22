@@ -4,11 +4,13 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple
 
 import cv2
 import numpy as np
+import toolz
 from keras.preprocessing.image import ImageDataGenerator
 
 from idl.batch_transform import generate_iterator_and_transform
 from idl.flow_directory import FlowFromDirectory
 from utils.generator import zip_generators
+from utils.image_transform import InterpolationEnum, img_resize
 
 
 def save_batch_transformed_img(
@@ -48,6 +50,8 @@ class FlowManager:
     def __init__(
         self,
         flow_from_directory: FlowFromDirectory,
+        resize_to: Tuple[int, int],
+        resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest,
         image_data_generator: ImageDataGenerator = ImageDataGenerator(),
         image_transform_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         each_transformed_image_save_function_optional: Optional[
@@ -62,19 +66,30 @@ class FlowManager:
         ----------
         flow_from_directory : FlowFromDirectory
             [description]
+        resize_to: Tuple[int, int]
+            이미지를 리사이즈 할 크기를 지정합니다. (세로, 가로)
+        resize_interpolation: InterpolationEnum
+            Interpolation 정책을 설정합니다. by default InterpolationEnum.inter_nearest
         image_data_generator : ImageDataGenerator, optional
             [description], by default ImageDataGenerator()
         image_transform_function : Optional[Callable[[np.ndarray], np.ndarray]], optional
             배치 내 이미지 변환 함수. 변환 함수가 지정되지 않으면, 변환 없이 그냥 내보냅니다., by default None
         each_transformed_image_save_function_optional : Optional[Callable[[int, int, np.ndarray], None]], optional
             샘플 인덱스 번호, 배치 번호 및 이미지를 입력으로 하는 저장 함수, by default None
-            `image_transform_function()` 메서드가 존재해야 동작합니다.
         transform_function_for_all : Optional[Callable[[np.ndarray], np.ndarray]], optional
             변환 함수. 배치 전체에 대한 변환 함수, by default None
         """
         self.flow_from_directory: FlowFromDirectory = flow_from_directory
+        self.resize_to: Tuple[int, int] = resize_to
         self.image_data_generator: Optional[ImageDataGenerator] = image_data_generator
-        self.image_transform_function = image_transform_function
+        _image_transform_function = lambda img: img
+        if image_transform_function is not None:
+            _image_transform_function = image_transform_function
+        image_transform_function_with_resize = toolz.compose_left(
+            lambda img: img_resize(img, resize_to, resize_interpolation),
+            _image_transform_function,
+        )
+        self.image_transform_function = image_transform_function_with_resize
         self.each_transformed_image_save_function_optional = (
             each_transformed_image_save_function_optional
         )

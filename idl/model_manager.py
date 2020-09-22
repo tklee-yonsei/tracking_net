@@ -22,6 +22,12 @@ class ModelDescriptor:
         self.inputs = inputs
         self.outputs = outputs
 
+    def get_input_sizes(self) -> List[Tuple[int, int]]:
+        return list(map(lambda el: (el[1][0], el[1][1]), self.inputs))
+
+    def get_output_sizes(self) -> List[Tuple[int, int]]:
+        return list(map(lambda el: (el[1][0], el[1][1]), self.outputs))
+
 
 def compile_model(
     model: Model,
@@ -59,8 +65,8 @@ def compile_model(
 
 
 class ModelHelper:
-    def __init__(self, descriptor: ModelDescriptor, alpha: float = 1.0):
-        self.descriptor = descriptor
+    def __init__(self, model_descriptor: ModelDescriptor, alpha: float = 1.0):
+        self.model_descriptor = model_descriptor
         self.alpha = alpha
 
     def get_model(self) -> Model:
@@ -80,7 +86,7 @@ class ModelHelper:
     ) -> Model:
         new_model = keras.models.clone_model(model)
         _model_descriptor = (
-            self.descriptor if model_descriptor is None else model_descriptor
+            self.model_descriptor if model_descriptor is None else model_descriptor
         )
         compile_model(
             new_model,
