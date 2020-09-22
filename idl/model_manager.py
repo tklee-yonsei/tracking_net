@@ -1,6 +1,5 @@
 from typing import List, Optional, Tuple
 
-import keras
 from keras.losses import Loss
 from keras.metrics import Metric
 from keras.models import Model
@@ -8,12 +7,23 @@ from keras.optimizers import Optimizer
 
 
 class LossDescriptor:
+    """
+    손실 설명을 위한 도구입니다.
+    """
+
     def __init__(self, loss: Loss, weight: int = 1.0):
         self.loss = loss
         self.weight = weight
 
 
 class ModelDescriptor:
+    """
+    모델 설명을 위한 도구입니다. 
+
+    - 모델에 해당되는 입력의 이름, 입력의 shape을 지정합니다.
+    - 모델에 해당되는 출력의 이름, 출력의 shape을 지정합니다.
+    """
+
     def __init__(
         self,
         inputs: List[Tuple[str, Tuple[int, int, int]]],
@@ -23,9 +33,25 @@ class ModelDescriptor:
         self.outputs = outputs
 
     def get_input_sizes(self) -> List[Tuple[int, int]]:
+        """
+        모델의 입력의 세로, 가로 크기를 반환합니다.
+
+        Returns
+        -------
+        List[Tuple[int, int]]
+            이미지의 세로, 가로 크기 리스트
+        """
         return list(map(lambda el: (el[1][0], el[1][1]), self.inputs))
 
     def get_output_sizes(self) -> List[Tuple[int, int]]:
+        """
+        모델의 출력의 세로, 가로 크기를 반환합니다.
+
+        Returns
+        -------
+        List[Tuple[int, int]]
+            이미지의 세로, 가로 크기 리스트
+        """
         return list(map(lambda el: (el[1][0], el[1][1]), self.outputs))
 
 
@@ -40,6 +66,28 @@ def compile_model(
     target_tensors=None,
     **kwargs
 ):
+    """
+    모델을 컴파일합니다.
+
+    Parameters
+    ----------
+    model : Model
+        컴파일 할 모델
+    model_descriptor : ModelDescriptor
+        모델 설명 도구
+    optimizer : Optimizer
+        옵티마이저
+    loss_list : List[LossDescriptor]
+        손실 설명 도구의 리스트
+    metrics : List[Metric]
+        메트릭 리스트
+    sample_weight_mode : [type], optional
+        `sample_weight_mode`, by default None
+    weighted_metrics : [type], optional
+        `weighted_metrics`, by default None
+    target_tensors : [type], optional
+        `target_tensors`, by default None
+    """
     losses = dict(
         zip(
             list(map(lambda el: el[0], model_descriptor.outputs)),
@@ -65,6 +113,10 @@ def compile_model(
 
 
 class ModelHelper:
+    """
+    [Interface]
+    """
+
     def __init__(self, model_descriptor: ModelDescriptor, alpha: float = 1.0):
         self.model_descriptor = model_descriptor
         self.alpha = alpha
@@ -84,12 +136,11 @@ class ModelHelper:
         target_tensors=None,
         **kwargs
     ) -> Model:
-        new_model = keras.models.clone_model(model)
-        _model_descriptor = (
-            self.model_descriptor if model_descriptor is None else model_descriptor
-        )
+        _model_descriptor = model_descriptor
+        if model_descriptor is None:
+            _model_descriptor = self.model_descriptor
         compile_model(
-            new_model,
+            model,
             model_descriptor=_model_descriptor,
             optimizer=optimizer,
             loss_list=loss_list,
@@ -99,4 +150,4 @@ class ModelHelper:
             target_tensors=target_tensors,
             **kwargs
         )
-        return new_model
+        return model

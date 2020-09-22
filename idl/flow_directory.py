@@ -50,32 +50,13 @@ class FlowFromDirectory:
         Parameters
         ----------
         generator : ImageDataGenerator, optional
-            데이터 증대를 위한 `ImageDataGenerator`를 직접 지정할 수 있습니다, by default ImageDataGenerator()
+            데이터 증식를 위한 `ImageDataGenerator`를 직접 지정할 수 있습니다, by default ImageDataGenerator()
 
         Returns
         -------
         DirectoryIterator
             디렉토리로부터 만들어진 `ImageDataGenerator`
         """
-        return generator.flow_from_directory(
-            self.from_directory,
-            classes=self.class_directorys,
-            target_size=self.target_size,
-            batch_size=self.batch_size,
-            color_mode=self.color_mode,
-            class_mode=self.class_mode,
-            shuffle=self.shuffle,
-            seed=self.seed,
-            save_to_dir=self.save_to_dir,
-            save_prefix=self.save_prefix,
-            save_format=self.save_format,
-            follow_links=self.follow_links,
-            subset=self.subset,
-            interpolation=self.interpolation,
-        )
-
-    def get_iterator_image_name(self):
-        generator = AugmentingDataGenerator()
         return generator.flow_from_directory(
             self.from_directory,
             classes=self.class_directorys,

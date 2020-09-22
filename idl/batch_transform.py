@@ -1,9 +1,8 @@
-from typing import Callable, Iterator, Optional, Tuple
+from typing import Callable, Iterator, Optional
 
 import numpy as np
 import toolz
 
-from idl.flow_directory import FlowFromDirectory
 from utils.optional import get_or_else
 
 
