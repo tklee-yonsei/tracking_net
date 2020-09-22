@@ -18,8 +18,6 @@ from image_keras.utils.image_transform import (
     img_to_ratio,
 )
 
-from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
-
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
 if gpus:
@@ -31,6 +29,7 @@ if gpus:
         # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
         print(e)
 
+from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -55,9 +54,9 @@ if __name__ == "__main__":
     # b) dataset folders
     test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
     # input - image
-    image_folder: str = os.path.join(test_dataset_folder, "image", "current")
+    test_image_folder: str = os.path.join(test_dataset_folder, "image", "current")
     # output - label
-    label_folder: str = os.path.join(test_dataset_folder, "semantic_label")
+    test_label_folder: str = os.path.join(test_dataset_folder, "semantic_label")
 
     # 1. Model
     # --------
@@ -91,7 +90,7 @@ if __name__ == "__main__":
 
     # a) image
     test_img_flow: FlowFromDirectory = ImagesFromDirectory(
-        dataset_directory=image_folder,
+        dataset_directory=test_image_folder,
         batch_size=batch_size,
         color_mode="grayscale",
         shuffle=False,
@@ -113,7 +112,7 @@ if __name__ == "__main__":
 
     # a) label
     test_label_flow: FlowFromDirectory = ImagesFromDirectory(
-        dataset_directory=label_folder,
+        dataset_directory=test_label_folder,
         batch_size=batch_size,
         color_mode="grayscale",
         shuffle=False,
@@ -133,18 +132,18 @@ if __name__ == "__main__":
     )
 
     # 2.3 Inout ---------
-    in_out_generator = BaseInOutGenerator(
+    test_in_out_generator = BaseInOutGenerator(
         input_flows=[test_image_flow_manager], output_flows=[test_label_flow_manager]
     )
-    test_generator = in_out_generator.get_generator()
 
-    samples = in_out_generator.get_samples()
-    filenames = in_out_generator.get_filenames()
-    nb_samples = math.ceil(samples / batch_size)
+    test_generator = test_in_out_generator.get_generator()
+    test_samples = test_in_out_generator.get_samples()
+    test_filenames = test_in_out_generator.get_filenames()
+    test_nb_samples = math.ceil(test_samples / batch_size)
 
     # 3. Test
     # -------
-    test_steps = samples // batch_size
+    test_steps = test_samples // batch_size
     test_loss, test_acc, test_mean_iou = model.evaluate_generator(
         test_generator, steps=test_steps, verbose=1, max_queue_size=1
     )

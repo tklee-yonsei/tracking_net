@@ -23,8 +23,6 @@ from image_keras.utils.image_transform import (
 )
 from keras.preprocessing.image import ImageDataGenerator
 
-from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
-
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
 if gpus:
@@ -36,6 +34,7 @@ if gpus:
         # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
         print(e)
 
+from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
 
 if __name__ == "__main__":
     # 0. Prepare

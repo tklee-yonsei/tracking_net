@@ -52,27 +52,38 @@ def save_batch_transformed_img(
 
 
 if __name__ == "__main__":
-    # Prepare
-    # -------
+    # 0. Prepare
+    # ----------
+
     # training_id: 사용한 모델, Training 날짜
+    # 0.1 ID ---------
     model_name: str = "unet_l4"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
     training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
 
+    # 0.2 Folder ---------
+
+    # a) model, weights, result
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
-
     common_py.create_folder(save_models_folder)
     common_py.create_folder(save_weights_folder)
 
+    # b) dataset folders
     training_dataset_folder: str = os.path.join(
         base_data_folder, "training_original_20_edge10"
     )
-    validation_dataset_folder: str = os.path.join(
+    val_dataset_folder: str = os.path.join(
         base_data_folder, "validation_original_20_edge10"
     )
+    # input - image
+    training_image_folder: str = os.path.join(training_dataset_folder, "image")
+    val_image_folder: str = os.path.join(val_dataset_folder, "image")
+    # output - label
+    training_label_folder: str = os.path.join(training_dataset_folder, "label")
+    val_label_folder: str = os.path.join(val_dataset_folder, "label")
 
     # Dataset Generator
     # -----------------
@@ -82,8 +93,8 @@ if __name__ == "__main__":
 
     # 1) Training
     # image
-    training_image_folder: str = os.path.join(training_dataset_folder, "image")
-    validation_img_flow: FlowFromDirectory = ImagesFromDirectory(
+    # training_image_folder: str = os.path.join(training_dataset_folder, "image")
+    training_img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=training_image_folder,
         batch_size=training_batch_size,
         color_mode="grayscale",
@@ -94,13 +105,14 @@ if __name__ == "__main__":
         lambda _img: img_resize(_img, (256, 256)), gray_image_apply_clahe,
     )
     training_image_flow_manager: FlowManager = FlowManager(
-        flow_from_directory=validation_img_flow,
+        flow_from_directory=training_img_flow,
+        resize_to=(256, 256),
         image_transform_function=training_each_image_transform_function,
         transform_function_for_all=img_to_ratio,
     )
 
     # label
-    training_label_folder: str = os.path.join(training_dataset_folder, "label")
+    # training_label_folder: str = os.path.join(training_dataset_folder, "label")
 
     training_label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=training_label_folder,
@@ -115,6 +127,7 @@ if __name__ == "__main__":
     )
     training_label_flow_manager: FlowManager = FlowManager(
         flow_from_directory=training_label_flow,
+        resize_to=(256, 256),
         image_transform_function=training_each_label_transform_function,
         transform_function_for_all=img_to_ratio,
     )
@@ -128,9 +141,9 @@ if __name__ == "__main__":
 
     # 2) Validation
     # image
-    validation_image_folder: str = os.path.join(validation_dataset_folder, "image")
+    # validation_image_folder: str = os.path.join(validation_dataset_folder, "image")
     validation_img_flow: FlowFromDirectory = ImagesFromDirectory(
-        dataset_directory=validation_image_folder,
+        dataset_directory=val_image_folder,
         batch_size=val_batch_size,
         color_mode="grayscale",
         shuffle=False,
@@ -140,15 +153,16 @@ if __name__ == "__main__":
     )
     validation_image_flow_manager: FlowManager = FlowManager(
         flow_from_directory=validation_img_flow,
+        resize_to=(256, 256),
         image_transform_function=validation_each_image_transform_function,
         transform_function_for_all=img_to_ratio,
     )
 
     # label
-    validation_label_folder: str = os.path.join(validation_dataset_folder, "label")
+    # validation_label_folder: str = os.path.join(validation_dataset_folder, "label")
 
     validation_label_flow: FlowFromDirectory = ImagesFromDirectory(
-        dataset_directory=validation_label_folder,
+        dataset_directory=val_label_folder,
         batch_size=val_batch_size,
         color_mode="grayscale",
         shuffle=False,
@@ -159,6 +173,7 @@ if __name__ == "__main__":
     )
     validation_label_flow_manager: FlowManager = FlowManager(
         flow_from_directory=validation_label_flow,
+        resize_to=(256, 256),
         image_transform_function=validation_each_label_transform_function,
         transform_function_for_all=img_to_ratio,
     )
@@ -201,8 +216,13 @@ if __name__ == "__main__":
     callback_list: List[Callback] = [model_checkpoint, early_stopping]
 
     # 3) Model
-    model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
+    from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
+
+    model_helper = UnetL4ModelHelper()
+    model_path: str = os.path.join(save_models_folder, "unet_l4_001.json")
     model: keras.models.Model = load_model(model_path)
+    # model = model_helper.get_model()
+    model = model_helper.compile_model(model)
     model.compile(
         optimizer=optimizers.Adam(lr=1e-4),
         loss=losses.binary_crossentropy,
