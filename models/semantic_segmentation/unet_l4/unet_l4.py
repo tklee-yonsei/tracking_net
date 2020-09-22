@@ -1,6 +1,8 @@
 from typing import List, Tuple
 
 import keras
+from image_keras.custom.metrics import BinaryClassMeanIoU
+from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from keras import losses, optimizers
 from keras.layers import (
     Conv2D,
@@ -14,9 +16,6 @@ from keras.layers import (
 from keras.metrics import Metric
 from keras.models import Model
 from keras.optimizers import Adam, Optimizer
-
-from idl.custom.metrics import BinaryClassMeanIoU
-from idl.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
