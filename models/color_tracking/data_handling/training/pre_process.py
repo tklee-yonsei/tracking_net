@@ -4,8 +4,7 @@ from typing import Callable, Optional
 import numpy as np
 import toolz
 from common_py import ArgTypeMixin
-
-from utils.image_transform import gray_image_apply_clahe
+from image_keras.utils.image_transform import gray_image_apply_clahe
 
 
 @unique

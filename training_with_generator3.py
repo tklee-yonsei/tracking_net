@@ -184,11 +184,17 @@ if __name__ == "__main__":
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
 
+    val_checkpoint_metric = "val_" + model.metrics[1].name
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
             save_weights_folder,
             training_id[1:]
-            + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-val_mean_iou_{val_mean_iou:.3f}.hdf5",
+            + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-"
+            + val_checkpoint_metric
+            + "_{"
+            + val_checkpoint_metric
+            + ":.3f}.hdf5",
+            # + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-val_mean_iou_{val_mean_iou:.3f}.hdf5",
         ),
         verbose=1,
         after_epoch=apply_callbacks_after,
