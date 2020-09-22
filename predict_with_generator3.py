@@ -40,6 +40,7 @@ if gpus:
 if __name__ == "__main__":
     # 0. Prepare
     # ----------
+
     # predict_id: 사용한 모델, Predict 날짜
     # 0.1 ID ---------
     model_name: str = "unet_l4"
@@ -47,6 +48,7 @@ if __name__ == "__main__":
     predict_id: str = "_predict__model_{}__run_{}".format(model_name, run_id)
 
     # 0.2 Folder ---------
+
     # a) model, weights, result
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
@@ -64,9 +66,11 @@ if __name__ == "__main__":
     # --------
     # model -> load weights
     model_helper = UnetL4ModelHelper()
-    # model (from python code)
+
+    # a) model (from python code)
     model = model_helper.get_model()
-    # load weights
+
+    # b) load weights
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     model.load_weights(weights_path)
 
@@ -76,6 +80,7 @@ if __name__ == "__main__":
 
     # 2.1 Input ---------
     input_sizes = model_helper.model_descriptor.get_input_sizes()
+
     # a) image
     predict_img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,

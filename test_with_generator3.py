@@ -35,6 +35,7 @@ if gpus:
 if __name__ == "__main__":
     # 0. Prepare
     # ----------
+
     # test_id: 사용한 모델, Test 날짜
     # 0.1 ID ---------
     model_name: str = "unet_l4"
@@ -42,6 +43,7 @@ if __name__ == "__main__":
     test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
 
     # 0.2 Folder ---------
+
     # a) model, weights, result
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     test_result_folder: str = os.path.join(base_data_folder, test_id)
     common_py.create_folder(test_result_folder)
 
-    # a) dataset folders
+    # b) dataset folders
     test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
     # input - image
     image_folder: str = os.path.join(test_dataset_folder, "image", "current")
@@ -61,25 +63,22 @@ if __name__ == "__main__":
     # --------
     # model -> compile -> load weights
     model_helper = UnetL4ModelHelper()
-    # model (from python code)
+    # ref. model (from python code)
     # model = model_helper.get_model()
-
-    # compile
     # model = model_helper.compile_model(model)
-
     # save model to json
     # model_path: str = os.path.join(save_models_folder, "unet_l4_001.json")
     # save_model(model_path, model)
 
-    # model (from json)
+    # a) model (from json)
     model_path: str = os.path.join(save_models_folder, "unet_l4_001.json")
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     model = load_model(model_path)
 
-    # compile
+    # b) compile
     model = model_helper.compile_model(model)
 
-    # load weights
+    # c) load weights
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     model.load_weights(weights_path)
 
@@ -89,6 +88,7 @@ if __name__ == "__main__":
 
     # 2.1 Input ---------
     input_sizes = model_helper.model_descriptor.get_input_sizes()
+
     # a) image
     test_img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,
@@ -110,6 +110,7 @@ if __name__ == "__main__":
 
     # 2.2 Output ---------
     output_sizes = model_helper.model_descriptor.get_output_sizes()
+
     # a) label
     test_label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=label_folder,
