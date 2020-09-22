@@ -3,8 +3,6 @@ import os
 import time
 
 import common_py
-import cv2
-import numpy as np
 import tensorflow as tf
 import toolz
 
@@ -39,14 +37,20 @@ if __name__ == "__main__":
     test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
 
     # 0.2 Folder ---------
+    # a) model, weights, result
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
-
-    test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
     test_result_folder: str = os.path.join(base_data_folder, test_id)
     common_py.create_folder(test_result_folder)
+
+    # a) dataset folders
+    test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
+    # input - image
+    image_folder: str = os.path.join(test_dataset_folder, "image", "current")
+    # output - label
+    label_folder: str = os.path.join(test_dataset_folder, "semantic_label")
 
     # 1. Model
     # --------
@@ -54,7 +58,7 @@ if __name__ == "__main__":
     # model
     model = model_helper.get_model()
     # compile
-    model_helper.compile_model(model)
+    model = model_helper.compile_model(model)
     # load weights
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     model.load_weights(weights_path)
@@ -65,7 +69,6 @@ if __name__ == "__main__":
 
     # 2.1 Input ---------
     # a) image
-    image_folder: str = os.path.join(test_dataset_folder, "image", "current")
     img_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=image_folder,
         batch_size=batch_size,
@@ -85,7 +88,6 @@ if __name__ == "__main__":
 
     # 2.2 Output ---------
     # a) label
-    label_folder: str = os.path.join(test_dataset_folder, "semantic_label")
     label_flow: FlowFromDirectory = ImagesFromDirectory(
         dataset_directory=label_folder,
         batch_size=batch_size,
@@ -119,9 +121,13 @@ if __name__ == "__main__":
         test_generator, steps=test_steps, verbose=1, max_queue_size=1
     )
 
-    print("loss : {}".format(model.loss))
+    print(
+        "loss : {}".format(
+            dict(map(lambda kv: (kv[0], kv[1].name), model.loss.items()))
+        )
+    )
     print("loss weights : {}".format(model.loss_weights))
-    print("metrics : {}".format(model.metrics))
+    print("metrics : {}".format(list(map(lambda el: el.name, model.metrics))))
 
     print("test_loss: {}".format(test_loss))
     print("test_acc: {}".format(test_acc))

@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
 
+import keras
 from keras.losses import Loss
 from keras.metrics import Metric
 from keras.models import Model
@@ -76,12 +77,13 @@ class ModelHelper:
         weighted_metrics=None,
         target_tensors=None,
         **kwargs
-    ):
+    ) -> Model:
+        new_model = keras.models.clone_model(model)
         _model_descriptor = (
             self.descriptor if model_descriptor is None else model_descriptor
         )
         compile_model(
-            model,
+            new_model,
             model_descriptor=_model_descriptor,
             optimizer=optimizer,
             loss_list=loss_list,
@@ -91,3 +93,4 @@ class ModelHelper:
             target_tensors=target_tensors,
             **kwargs
         )
+        return new_model

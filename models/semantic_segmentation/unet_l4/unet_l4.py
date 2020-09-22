@@ -16,12 +16,7 @@ from keras.models import Model
 from keras.optimizers import Adam, Optimizer
 
 from idl.metrics import BinaryClassMeanIoU
-from idl.model_manager import (
-    LossDescriptor,
-    ModelDescriptor,
-    ModelHelper,
-    compile_model,
-)
+from idl.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
@@ -227,8 +222,8 @@ class UnetL4ModelHelper(ModelHelper):
         weighted_metrics=None,
         target_tensors=None,
         **kwargs
-    ):
-        super().compile_model(
+    ) -> Model:
+        return super().compile_model(
             model=model,
             optimizer=optimizer,
             loss_list=loss_list,
