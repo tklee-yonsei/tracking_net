@@ -1,16 +1,27 @@
 from typing import Tuple
 
 from keras import losses, optimizers
-from keras.layers import *
-from keras.models import *
-from keras.optimizers import *
+from keras.layers import (
+    Conv2D,
+    Dropout,
+    Input,
+    Layer,
+    MaxPooling2D,
+    UpSampling2D,
+    concatenate,
+)
+from keras.models import Model
+
+from models.gpu_check import check_first_gpu
+
+check_first_gpu()
 
 
-def unet_l1() -> Model:
-    input_size: Tuple[int, int, int] = (256, 256, 1)
+def unet_l1(
+    input_name: str, input_shape: Tuple[int, int, int], output_name: str, alpha=1.0
+):
     filters: int = 16
-
-    inputs = Input(input_size)
+    inputs = Input(shape=input_shape, name=input_name)
 
     # 256 -> 256, 1 -> 64
     conv1: Layer = Conv2D(
@@ -82,6 +93,6 @@ def unet_l1() -> Model:
         2, 3, activation="relu", padding="same", kernel_initializer="he_normal"
     )(conv4)
     # 256 -> 256, 2 -> 1
-    conv6 = Conv2D(1, 1, activation="sigmoid")(conv5)
+    conv6 = Conv2D(1, 1, name=output_name, activation="sigmoid")(conv5)
 
-    return Model(inputs=inputs, outputs=conv6)
+    return Model(inputs=[inputs], outputs=[conv6])
