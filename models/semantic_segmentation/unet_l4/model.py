@@ -1,9 +1,5 @@
-from typing import List, Tuple
+from typing import Tuple
 
-import keras
-import tensorflow as tf
-from image_keras.custom.metrics import BinaryClassMeanIoU
-from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from keras import losses, optimizers
 from keras.layers import (
     Conv2D,
@@ -14,71 +10,11 @@ from keras.layers import (
     UpSampling2D,
     concatenate,
 )
-from keras.metrics import Metric
 from keras.models import Model
-from keras.optimizers import Adam, Optimizer
 
-# GPU Setting
-gpus = tf.config.experimental.list_physical_devices("GPU")
-if gpus:
-    # 텐서플로가 첫 번째 GPU만 사용하도록 제한
-    try:
-        tf.config.experimental.set_visible_devices(gpus[0], "GPU")
-        tf.config.experimental.set_memory_growth(gpus[0], True)
-    except RuntimeError as e:
-        # 프로그램 시작시에 접근 가능한 장치가 설정되어야만 합니다
-        print(e)
+from models.gpu_check import check_first_gpu
 
-unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
-    inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
-)
-
-unet_l4_loss_descriptors_default: List[LossDescriptor] = [
-    LossDescriptor(loss=keras.losses.BinaryCrossentropy(), weight=1.0)
-]
-
-
-class UnetL4ModelHelper(ModelHelper):
-    def __init__(
-        self,
-        model_descriptor: ModelDescriptor = unet_l4_model_descriptor_default,
-        alpha: float = 1.0,
-    ):
-        super().__init__(model_descriptor, alpha)
-
-    def get_model(self) -> Model:
-        return unet_l4(
-            input_name=self.model_descriptor.inputs[0][0],
-            input_shape=self.model_descriptor.inputs[0][1],
-            output_name=self.model_descriptor.outputs[0][0],
-            alpha=self.alpha,
-        )
-
-    def compile_model(
-        self,
-        model: Model,
-        optimizer: Optimizer = Adam(lr=1e-4),
-        loss_list: List[LossDescriptor] = unet_l4_loss_descriptors_default,
-        metrics: List[Metric] = [
-            keras.metrics.BinaryAccuracy(name="accuracy"),
-            BinaryClassMeanIoU(name="mean_iou"),
-        ],
-        sample_weight_mode=None,
-        weighted_metrics=None,
-        target_tensors=None,
-        **kwargs
-    ) -> Model:
-        return super().compile_model(
-            model=model,
-            optimizer=optimizer,
-            loss_list=loss_list,
-            metrics=metrics,
-            model_descriptor=self.model_descriptor,
-            sample_weight_mode=sample_weight_mode,
-            weighted_metrics=weighted_metrics,
-            target_tensors=target_tensors,
-            **kwargs
-        )
+check_first_gpu()
 
 
 def unet_l4(
