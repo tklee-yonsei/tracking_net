@@ -1,9 +1,10 @@
 import math
 import os
 import time
-from typing import Generator, List, Tuple
+from typing import Callable, Generator, List, Optional, Tuple
 
 import common_py
+import numpy as np
 import toolz
 from common_py.dl.report import acc_loss_plot
 from image_keras.custom.callbacks_after_epoch import (
@@ -11,16 +12,20 @@ from image_keras.custom.callbacks_after_epoch import (
     ModelCheckpointAfter,
 )
 from image_keras.flow_directory import FlowFromDirectory, ImagesFromDirectory
-from image_keras.inout_generator import BaseInOutGenerator, FlowManager
-from image_keras.model_io import load_model
-from image_keras.utils.image_transform import (
-    gray_image_apply_clahe,
-    img_to_minmax,
-    img_to_ratio,
+from image_keras.inout_generator import (
+    BaseInOutGenerator,
+    FlowManager,
+    save_batch_transformed_img,
 )
+from image_keras.model_io import load_model
+from image_keras.utils.image_transform import img_to_ratio
 from keras.callbacks import Callback, History
 
-from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
+from models.semantic_segmentation.unet_l4 import (
+    UnetL4ModelHelper,
+    input_image_preprocessing_function,
+    output_label_preprocessing_function,
+)
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -41,6 +46,8 @@ if __name__ == "__main__":
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
     common_py.create_folder(save_models_folder)
     common_py.create_folder(save_weights_folder)
+    training_result_folder: str = os.path.join(base_data_folder, training_id)
+    common_py.create_folder(training_result_folder)
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
@@ -82,8 +89,18 @@ if __name__ == "__main__":
 
     # a) image
     def __input_image_flow(
-        dataset_directory: str, batch_size: int, shuffle: bool, seed: int = 42
+        dataset_directory: str,
+        batch_size: int,
+        shuffle: bool,
+        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
+        seed: int = 42,
     ) -> FlowManager:
+        _each_transformed_image_save_function_optional = None
+        if save_folder_and_prefix is not None:
+            _each_transformed_image_save_function_optional = toolz.curry(
+                save_batch_transformed_img
+            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
         _img_flow: FlowFromDirectory = ImagesFromDirectory(
             dataset_directory=dataset_directory,
             batch_size=batch_size,
@@ -91,12 +108,11 @@ if __name__ == "__main__":
             shuffle=shuffle,
             seed=seed,
         )
-        _each_image_transform_function = gray_image_apply_clahe
         _image_flow_manager: FlowManager = FlowManager(
             flow_from_directory=_img_flow,
             resize_to=input_sizes[0],
-            image_transform_function=_each_image_transform_function,
-            each_transformed_image_save_function_optional=None,
+            image_transform_function=preprocessing_function,
+            each_transformed_image_save_function_optional=_each_transformed_image_save_function_optional,
             transform_function_for_all=img_to_ratio,
         )
         return _image_flow_manager
@@ -104,10 +120,15 @@ if __name__ == "__main__":
     training_image_flow_manager = __input_image_flow(
         dataset_directory=training_image_folder,
         batch_size=training_batch_size,
+        preprocessing_function=input_image_preprocessing_function,
+        save_folder_and_prefix=(training_result_folder, "training_image_"),
         shuffle=True,
     )
     val_image_flow_manager = __input_image_flow(
-        dataset_directory=val_image_folder, batch_size=val_batch_size, shuffle=False
+        dataset_directory=val_image_folder,
+        batch_size=val_batch_size,
+        preprocessing_function=input_image_preprocessing_function,
+        shuffle=False,
     )
 
     # 2.2 Output ---------
@@ -115,8 +136,18 @@ if __name__ == "__main__":
 
     # a) label
     def __output_label_flow(
-        dataset_directory: str, batch_size: int, shuffle: bool, seed: int = 42
+        dataset_directory: str,
+        batch_size: int,
+        shuffle: bool,
+        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
+        seed: int = 42,
     ) -> FlowManager:
+        _each_transformed_label_save_function_optional = None
+        if save_folder_and_prefix is not None:
+            _each_transformed_label_save_function_optional = toolz.curry(
+                save_batch_transformed_img
+            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
         _label_flow: FlowFromDirectory = ImagesFromDirectory(
             dataset_directory=dataset_directory,
             batch_size=batch_size,
@@ -124,14 +155,11 @@ if __name__ == "__main__":
             shuffle=shuffle,
             seed=seed,
         )
-        _each_label_transform_function = toolz.compose_left(
-            lambda _img: img_to_minmax(_img, 127, (0, 255)),
-        )
         _label_flow_manager: FlowManager = FlowManager(
             flow_from_directory=_label_flow,
             resize_to=output_sizes[0],
-            image_transform_function=_each_label_transform_function,
-            each_transformed_image_save_function_optional=None,
+            image_transform_function=preprocessing_function,
+            each_transformed_image_save_function_optional=_each_transformed_label_save_function_optional,
             transform_function_for_all=img_to_ratio,
         )
         return _label_flow_manager
@@ -139,10 +167,15 @@ if __name__ == "__main__":
     training_label_flow_manager = __output_label_flow(
         dataset_directory=training_label_folder,
         batch_size=training_batch_size,
+        preprocessing_function=output_label_preprocessing_function,
+        save_folder_and_prefix=(training_result_folder, "training_label_"),
         shuffle=True,
     )
     val_label_flow_manager = __output_label_flow(
-        dataset_directory=val_label_folder, batch_size=val_batch_size, shuffle=False
+        dataset_directory=val_label_folder,
+        batch_size=val_batch_size,
+        preprocessing_function=output_label_preprocessing_function,
+        shuffle=False,
     )
 
     # 2.3 Inout ---------
@@ -184,7 +217,8 @@ if __name__ == "__main__":
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
 
-    val_checkpoint_metric = "val_" + model.metrics[1].name
+    val_metric = model.metrics[1].name
+    val_checkpoint_metric = "val_" + val_metric
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
             save_weights_folder,
@@ -223,9 +257,9 @@ if __name__ == "__main__":
 
     # History display
     history_target_folder, acc_plot_image_name, loss_plot_image_name = acc_loss_plot(
-        history.history["accuracy"],
+        history.history[val_metric],
         history.history["loss"],
-        history.history["val_accuracy"],
+        history.history["val_{}".format(val_metric)],
         history.history["val_loss"],
         training_id[1:],
         save_weights_folder,
