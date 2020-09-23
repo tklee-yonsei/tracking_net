@@ -1,5 +1,9 @@
 import math
 import os
+import sys
+
+sys.path.append(os.getcwd())
+
 import time
 
 import common_py
@@ -23,7 +27,7 @@ from image_keras.utils.image_transform import (
 )
 from keras.preprocessing.image import ImageDataGenerator
 
-from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
+from models.semantic_segmentation.unet_l4 import UnetL4ModelHelper
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -89,21 +93,24 @@ if __name__ == "__main__":
     )
 
     # 2.2 Inout ---------
-    in_out_generator = BaseInOutGenerator(input_flows=[predict_image_flow_manager])
-    predict_generator = in_out_generator.get_generator()
-
-    samples = in_out_generator.get_samples()
-    filenames = in_out_generator.get_filenames()
-    nb_samples = math.ceil(samples / batch_size)
+    predict_in_out_generator = BaseInOutGenerator(
+        input_flows=[predict_image_flow_manager]
+    )
+    predict_generator = predict_in_out_generator.get_generator()
+    predict_samples = predict_in_out_generator.get_samples()
+    predict_filenames = predict_in_out_generator.get_filenames()
+    predict_nb_samples = math.ceil(predict_samples / batch_size)
 
     # 3. Predict
     # -------
-    results = model.predict_generator(predict_generator, steps=nb_samples, verbose=1)
+    results = model.predict_generator(
+        predict_generator, steps=predict_nb_samples, verbose=1
+    )
 
     # 4. Post Processing
     # ------------------
     for index, result in enumerate(results):
-        name: str = os.path.basename(filenames[index])
+        name: str = os.path.basename(predict_filenames[index])
         print("Post Processing for {}".format(name))
         full_path: str = os.path.join(predict_result_folder, name)
         result = ratio_to_img(result)

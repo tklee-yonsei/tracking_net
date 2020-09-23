@@ -1,5 +1,9 @@
 import math
 import os
+import sys
+
+sys.path.append(os.getcwd())
+
 import time
 
 import common_py
@@ -18,7 +22,8 @@ from image_keras.utils.image_transform import (
     img_to_ratio,
 )
 
-from models.semantic_segmentation.unet_l4.unet_l4 import UnetL4ModelHelper
+from models.semantic_segmentation.unet_l4.config import UnetL4ModelHelper
+
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -88,6 +93,20 @@ if __name__ == "__main__":
     test_each_transformed_image_save_function_optional = toolz.curry(
         save_batch_transformed_img
     )(test_result_folder, "image_")
+
+    # ImageDataGenerator 예시. FlowManager에 넣을 수 있습니다.
+    # from keras.preprocessing.image import ImageDataGenerator
+    # import numpy as np
+
+    # idg = ImageDataGenerator(
+    #     preprocessing_function=toolz.compose_left(
+    #         lambda _img: np.array(_img, dtype=np.uint8),
+    #         gray_image_apply_clahe,
+    #         lambda _img: np.reshape(_img, (_img.shape[0], _img.shape[1], 1)),
+    #     ),
+    #     fill_mode="nearest",
+    # )
+
     test_image_flow_manager: FlowManager = FlowManager(
         flow_from_directory=test_img_flow,
         resize_to=input_sizes[0],

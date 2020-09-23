@@ -1,5 +1,9 @@
 import math
 import os
+import sys
+
+sys.path.append(os.getcwd())
+
 import time
 from typing import Callable, Generator, List, Optional, Tuple
 
