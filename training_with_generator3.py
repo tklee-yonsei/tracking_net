@@ -121,7 +121,7 @@ if __name__ == "__main__":
         dataset_directory=training_image_folder,
         batch_size=training_batch_size,
         preprocessing_function=input_image_preprocessing_function,
-        save_folder_and_prefix=(training_result_folder, "training_image_"),
+        # save_folder_and_prefix=(training_result_folder, "training_image_"),
         shuffle=True,
     )
     val_image_flow_manager = __input_image_flow(
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         dataset_directory=training_label_folder,
         batch_size=training_batch_size,
         preprocessing_function=output_label_preprocessing_function,
-        save_folder_and_prefix=(training_result_folder, "training_label_"),
+        # save_folder_and_prefix=(training_result_folder, "training_label_"),
         shuffle=True,
     )
     val_label_flow_manager = __output_label_flow(
