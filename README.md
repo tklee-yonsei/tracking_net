@@ -9,3 +9,10 @@ U-Net 기반의 일련의 연속적인 이미지에서 각 인스턴스 객체�
 * TensorFlow &ge; 2.1.0
 * Keras &ge; 2.3.1
 * numpy &ge; 1.17.4
+
+## 실행 예시
+
+```python
+python _run/sample/training_with_generator.py
+python _run/20200923_random_string.py
+```
