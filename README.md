@@ -13,6 +13,6 @@ U-Net 기반의 일련의 연속적인 이미지에서 각 인스턴스 객체�
 ## 실행 예시
 
 ```python
-python _run/sample/training_with_generator.py
-python _run/20200923_random_string.py
+python _run/sample/semantic_segmentation/training_with_generator.py
+python _run/experiment_name.py
 ```
