@@ -14,7 +14,7 @@ from keras.metrics import Metric
 from keras.models import Model
 from keras.optimizers import Adam, Optimizer
 
-from models.color_tracking.model_006 import model_006
+from models.color_tracking.model_006.model import model_006
 
 bin_size: int = 30
 
@@ -121,12 +121,12 @@ class Model006ModelHelper(ModelHelper):
             input_main_image_shape=self.model_descriptor.inputs[0][1],
             input_ref_image_name=self.model_descriptor.inputs[1][0],
             input_ref_image_shape=self.model_descriptor.inputs[1][1],
-            input_ref1_label_name=self.model_descriptor.input[2][0],
-            input_ref1_label_shape=self.model_descriptor.input[2][1],
-            input_ref2_label_name=self.model_descriptor.input[3][0],
-            input_ref2_label_shape=self.model_descriptor.input[3][1],
-            input_ref3_label_name=self.model_descriptor.input[4][0],
-            input_ref3_label_shape=self.model_descriptor.input[4][1],
+            input_ref1_label_name=self.model_descriptor.inputs[2][0],
+            input_ref1_label_shape=self.model_descriptor.inputs[2][1],
+            input_ref2_label_name=self.model_descriptor.inputs[3][0],
+            input_ref2_label_shape=self.model_descriptor.inputs[3][1],
+            input_ref3_label_name=self.model_descriptor.inputs[4][0],
+            input_ref3_label_shape=self.model_descriptor.inputs[4][1],
             output_name=self.model_descriptor.outputs[0][0],
             bin_num=bin_size,
             alpha=self.alpha,
