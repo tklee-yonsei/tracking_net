@@ -146,7 +146,7 @@ if __name__ == "__main__":
         dataset_directory=training_main_image_folder,
         batch_size=training_batch_size,
         preprocessing_function=input_main_image_preprocessing_function,
-        save_folder_and_prefix=(training_result_folder, "training_main_image_"),
+        # save_folder_and_prefix=(training_result_folder, "training_main_image_"),
         shuffle=True,
     )
     val_main_image_flow_manager = __input_main_image_flow(
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         dataset_directory=training_ref_image_folder,
         batch_size=training_batch_size,
         preprocessing_function=input_ref_image_preprocessing_function,
-        save_folder_and_prefix=(training_result_folder, "training_ref_image_"),
+        # save_folder_and_prefix=(training_result_folder, "training_ref_image_"),
         shuffle=True,
     )
     val_ref_image_flow_manager = __input_ref_image_flow(
@@ -257,23 +257,23 @@ if __name__ == "__main__":
     ref1_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[2],
         image_transform_function=input_ref1_label_preprocessing_function,
-        each_transformed_image_save_function_optional=toolz.curry(
-            save_batch_transformed_img2
-        )(training_result_folder, "training_ref1_result_"),
+        # each_transformed_image_save_function_optional=toolz.curry(
+        #     save_batch_transformed_img2
+        # )(training_result_folder, "training_ref1_result_"),
     )
     ref2_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[3],
         image_transform_function=input_ref2_label_preprocessing_function,
-        each_transformed_image_save_function_optional=toolz.curry(
-            save_batch_transformed_img2
-        )(training_result_folder, "training_ref2_result_"),
+        # each_transformed_image_save_function_optional=toolz.curry(
+        #     save_batch_transformed_img2
+        # )(training_result_folder, "training_ref2_result_"),
     )
     ref3_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[4],
         image_transform_function=input_ref3_label_preprocessing_function,
-        each_transformed_image_save_function_optional=toolz.curry(
-            save_batch_transformed_img2
-        )(training_result_folder, "training_ref3_result_"),
+        # each_transformed_image_save_function_optional=toolz.curry(
+        #     save_batch_transformed_img2
+        # )(training_result_folder, "training_ref3_result_"),
     )
     output_helper_ref_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[4]
@@ -405,14 +405,14 @@ if __name__ == "__main__":
                 zipped_in_element[5], zipped_out_element[0], batch_size
             )
 
-            for i in range(batch_size):
-                save_batch_transformed_img2(
-                    training_result_folder,
-                    "training_output_main_label_",
-                    idx,
-                    i,
-                    modified_output[i],
-                )
+            # for i in range(batch_size):
+            #     save_batch_transformed_img2(
+            #         training_result_folder,
+            #         "training_output_main_label_",
+            #         idx,
+            #         i,
+            #         modified_output[i],
+            #     )
 
             yield (
                 [
