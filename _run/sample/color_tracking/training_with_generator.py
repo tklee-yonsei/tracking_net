@@ -146,7 +146,7 @@ if __name__ == "__main__":
         dataset_directory=training_main_image_folder,
         batch_size=training_batch_size,
         preprocessing_function=input_main_image_preprocessing_function,
-        # save_folder_and_prefix=(training_result_folder, "training_image_"),
+        save_folder_and_prefix=(training_result_folder, "training_main_image_"),
         shuffle=True,
     )
     val_main_image_flow_manager = __input_main_image_flow(
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         dataset_directory=training_ref_image_folder,
         batch_size=training_batch_size,
         preprocessing_function=input_ref_image_preprocessing_function,
-        # save_folder_and_prefix=(training_result_folder, "training_image_"),
+        save_folder_and_prefix=(training_result_folder, "training_ref_image_"),
         shuffle=True,
     )
     val_ref_image_flow_manager = __input_ref_image_flow(
@@ -222,17 +222,58 @@ if __name__ == "__main__":
         )
         return _image_flow_manager
 
+    def save_batch_transformed_img2(
+        target_folder: str,
+        prefix: str,
+        index_num: int,
+        batch_num: int,
+        image: np.ndarray,
+    ) -> None:
+        """
+        배치 변환된 이미지를 저장합니다.
+
+        Parameters
+        ----------
+        target_folder : str
+            타겟 폴더
+        prefix : str
+            파일의 맨 앞에 붙을 prefix
+        index_num : int
+            파일의 인덱스 번호
+        batch_num : int
+            파일의 배치 번호
+        image : np.ndarray
+            이미지
+        """
+        import cv2
+
+        for i in range(image.shape[2]):
+            img_name = "{}img_transformed_{:04d}_{:02d}_{:02d}.png".format(
+                prefix, index_num, batch_num, i
+            )
+            img_fullpath = os.path.join(target_folder, img_name)
+            cv2.imwrite(img_fullpath, image[:, :, i] * 255)
+
     ref1_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[2],
         image_transform_function=input_ref1_label_preprocessing_function,
+        each_transformed_image_save_function_optional=toolz.curry(
+            save_batch_transformed_img2
+        )(training_result_folder, "training_ref1_result_"),
     )
     ref2_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[3],
         image_transform_function=input_ref2_label_preprocessing_function,
+        each_transformed_image_save_function_optional=toolz.curry(
+            save_batch_transformed_img2
+        )(training_result_folder, "training_ref2_result_"),
     )
     ref3_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[4],
         image_transform_function=input_ref3_label_preprocessing_function,
+        each_transformed_image_save_function_optional=toolz.curry(
+            save_batch_transformed_img2
+        )(training_result_folder, "training_ref3_result_"),
     )
     output_helper_ref_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[4]
@@ -344,7 +385,7 @@ if __name__ == "__main__":
 
     # 2.4 Custom Generator Transform ---------
     def _zipped_transform(zipped_inout):
-        for zipped_inout_element in zipped_inout:
+        for idx, zipped_inout_element in enumerate(zipped_inout):
             zipped_in_element = zipped_inout_element[0]
             batch_size = zipped_in_element[0].shape[0]
             zipped_out_element = zipped_inout_element[1]
@@ -355,7 +396,7 @@ if __name__ == "__main__":
                     current_batch_in_list = _in[i]
                     current_batch_out_list = _out[i]
                     modified_out_list = output_label_preprocessing_function(
-                        current_batch_in_list, current_batch_out_list
+                        current_batch_out_list, current_batch_in_list
                     )
                     batch_out_list.append(modified_out_list)
                 return np.array(batch_out_list)
@@ -363,6 +404,16 @@ if __name__ == "__main__":
             modified_output = _modify_output(
                 zipped_in_element[5], zipped_out_element[0], batch_size
             )
+
+            for i in range(batch_size):
+                save_batch_transformed_img2(
+                    training_result_folder,
+                    "training_output_main_label_",
+                    idx,
+                    i,
+                    modified_output[i],
+                )
+
             yield (
                 [
                     zipped_in_element[0],
