@@ -2,15 +2,12 @@ import math
 import os
 import sys
 
-from image_keras.utils.generator import zip_generators
-
 sys.path.append(os.getcwd())
 
 import time
 from typing import Callable, Generator, List, Optional, Tuple
 
 import common_py
-from image_keras.batch_transform import zipped_transform
 import numpy as np
 import toolz
 from common_py.dl.report import acc_loss_plot
@@ -25,10 +22,8 @@ from image_keras.inout_generator import (
     Distributor,
     save_batch_transformed_img,
 )
-from image_keras.model_io import load_model
 from image_keras.utils.image_transform import img_to_ratio
 from keras.callbacks import Callback, History
-
 
 from models.color_tracking.model_006 import (
     Model006ModelHelper,
@@ -347,29 +342,11 @@ if __name__ == "__main__":
         output_flows=[val_output_main_label_flow_manager],
     )
 
-    import numpy as np
-
-    def zipped_function(
-        in_list: List[np.ndarray], out_list: List[np.ndarray]
-    ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
-
-        # 1. int8 정수 데이터 형태로 변환
-        in_list[5] = in_list[5].astype(np.uint8)
-        out_list[0] = out_list[0].astype(np.uint8)
-
-        # 2. 변환 함수 적용
-        modified_out_list = output_label_preprocessing_function(out_list[0], in_list[5])
-
-        return (
-            [in_list[0], in_list[1], in_list[2], in_list[3], in_list[4]],
-            [modified_out_list],
-        )
-
+    # 2.4 Custom Generator Transform ---------
     def _zipped_transform(zipped_inout):
         for zipped_inout_element in zipped_inout:
             zipped_in_element = zipped_inout_element[0]
-            batch_size = zipped_in_element[0].shape[0]  # 첫 번째 입력의 batch_size
-
+            batch_size = zipped_in_element[0].shape[0]
             zipped_out_element = zipped_inout_element[1]
 
             def _modify_output(_in, _out, _batch_size):
@@ -377,19 +354,15 @@ if __name__ == "__main__":
                 for i in range(_batch_size):
                     current_batch_in_list = _in[i]
                     current_batch_out_list = _out[i]
-
-                    # 2. 변환 함수 적용
                     modified_out_list = output_label_preprocessing_function(
                         current_batch_in_list, current_batch_out_list
                     )
-
                     batch_out_list.append(modified_out_list)
                 return np.array(batch_out_list)
 
             modified_output = _modify_output(
                 zipped_in_element[5], zipped_out_element[0], batch_size
             )
-
             yield (
                 [
                     zipped_in_element[0],
