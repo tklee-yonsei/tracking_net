@@ -137,7 +137,7 @@ class Model006ModelHelper(ModelHelper):
         model: Model,
         optimizer: Optimizer = Adam(lr=1e-4),
         loss_list: List[LossDescriptor] = model006_loss_descriptors_default,
-        metrics: List[Metric] = [keras.metrics.CategoricalAccuracy(name="accuracy")],
+        metrics: List[Metric] = [keras.metrics.CategoricalAccuracy(name="acc")],
         sample_weight_mode=None,
         weighted_metrics=None,
         target_tensors=None,

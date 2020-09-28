@@ -10,11 +10,6 @@ from typing import Callable, Generator, List, Optional, Tuple
 import common_py
 import numpy as np
 import toolz
-from common_py.dl.report import acc_loss_plot
-from image_keras.custom.callbacks_after_epoch import (
-    EarlyStoppingAfter,
-    ModelCheckpointAfter,
-)
 from image_keras.flow_directory import FlowFromDirectory, ImagesFromDirectory
 from image_keras.inout_generator import (
     DistFlowManager,
@@ -23,8 +18,6 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from keras.callbacks import Callback, History
-
 from models.color_tracking.model_006 import (
     Model006ModelHelper,
     input_main_image_preprocessing_function,
@@ -35,16 +28,15 @@ from models.color_tracking.model_006 import (
     output_label_preprocessing_function,
 )
 
-
 if __name__ == "__main__":
     # 0. Prepare
     # ----------
 
-    # training_id: 사용한 모델, Training 날짜
+    # test_id: 사용한 모델, Test 날짜
     # 0.1 ID ---------
     model_name: str = "model_006"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
+    test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
 
     # 0.2 Folder ---------
 
@@ -53,58 +45,43 @@ if __name__ == "__main__":
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
-    common_py.create_folder(save_models_folder)
-    common_py.create_folder(save_weights_folder)
-    training_result_folder: str = os.path.join(base_data_folder, training_id)
-    common_py.create_folder(training_result_folder)
+    test_result_folder: str = os.path.join(base_data_folder, test_id)
+    common_py.create_folder(test_result_folder)
 
     # b) dataset folders
-    training_dataset_folder: str = os.path.join(
-        base_data_folder, "ivan_filtered_training"
-    )
-    val_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_validation")
+    test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
     # input - main image
-    training_main_image_folder: str = os.path.join(
-        training_dataset_folder, "image", "current"
-    )
-    val_main_image_folder: str = os.path.join(val_dataset_folder, "image", "current")
+    test_main_image_folder: str = os.path.join(test_dataset_folder, "image", "current")
     # input - ref image
-    training_ref_image_folder: str = os.path.join(
-        training_dataset_folder, "image", "prev"
-    )
-    val_ref_image_folder: str = os.path.join(val_dataset_folder, "image", "prev")
+    test_ref_image_folder: str = os.path.join(test_dataset_folder, "image", "prev")
     # input - ref result label
-    training_ref_result_label_folder: str = os.path.join(
-        training_dataset_folder, "prev_result"
-    )
-    val_ref_result_label_folder: str = os.path.join(val_dataset_folder, "prev_result")
+    test_ref_result_label_folder: str = os.path.join(test_dataset_folder, "prev_result")
     # output - main label
-    training_output_main_label_folder: str = os.path.join(
-        training_dataset_folder, "label"
-    )
-    val_output_main_label_folder: str = os.path.join(val_dataset_folder, "label")
+    test_output_main_label_folder: str = os.path.join(test_dataset_folder, "label")
 
     # 1. Model
     # --------
     # model -> compile
+    # a) model (from python code)
     from models.semantic_segmentation.unet_l4.config import UnetL4ModelHelper
 
     unet_model_helper = UnetL4ModelHelper()
     unet_model = unet_model_helper.get_model()
-    unet_model_weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
-    unet_model.load_weights(unet_model_weights_path)
     model_helper = Model006ModelHelper(pre_trained_unet_l4_model=unet_model)
-
-    # a) model (from python code)
     model = model_helper.get_model()
 
     # b) compile
     model = model_helper.compile_model(model)
 
+    # c) load weights
+    weights_path: str = os.path.join(
+        save_weights_folder,
+        "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
+    )
+    model.load_weights(weights_path)
+
     # 2. Dataset
     # ----------
-    training_batch_size: int = 4
-    val_batch_size: int = 4
     test_batch_size: int = 4
 
     # 2.1 Input ---------
@@ -142,17 +119,11 @@ if __name__ == "__main__":
         )
         return _image_flow_manager
 
-    training_main_image_flow_manager = __input_main_image_flow(
-        dataset_directory=training_main_image_folder,
-        batch_size=training_batch_size,
+    test_main_image_flow_manager = __input_main_image_flow(
+        dataset_directory=test_main_image_folder,
+        batch_size=test_batch_size,
         preprocessing_function=input_main_image_preprocessing_function,
         # save_folder_and_prefix=(training_result_folder, "training_main_image_"),
-        shuffle=True,
-    )
-    val_main_image_flow_manager = __input_main_image_flow(
-        dataset_directory=val_main_image_folder,
-        batch_size=val_batch_size,
-        preprocessing_function=input_main_image_preprocessing_function,
         shuffle=False,
     )
 
@@ -188,17 +159,11 @@ if __name__ == "__main__":
         )
         return _image_flow_manager
 
-    training_ref_image_flow_manager = __input_ref_image_flow(
-        dataset_directory=training_ref_image_folder,
-        batch_size=training_batch_size,
+    test_ref_image_flow_manager = __input_ref_image_flow(
+        dataset_directory=test_ref_image_folder,
+        batch_size=test_batch_size,
         preprocessing_function=input_ref_image_preprocessing_function,
         # save_folder_and_prefix=(training_result_folder, "training_ref_image_"),
-        shuffle=True,
-    )
-    val_ref_image_flow_manager = __input_ref_image_flow(
-        dataset_directory=val_ref_image_folder,
-        batch_size=val_batch_size,
-        preprocessing_function=input_ref_image_preprocessing_function,
         shuffle=False,
     )
 
@@ -279,20 +244,9 @@ if __name__ == "__main__":
         resize_to=input_sizes[4]
     )
 
-    training_ref_result_flow_manager = __input_result_label_flow(
-        dataset_directory=training_ref_result_label_folder,
-        batch_size=training_batch_size,
-        shuffle=True,
-        distributors=[
-            ref1_result_distributor,
-            ref2_result_distributor,
-            ref3_result_distributor,
-            output_helper_ref_result_distributor,
-        ],
-    )
-    val_ref_result_flow_manager = __input_result_label_flow(
-        dataset_directory=val_ref_result_label_folder,
-        batch_size=val_batch_size,
+    test_ref_result_flow_manager = __input_result_label_flow(
+        dataset_directory=test_ref_result_label_folder,
+        batch_size=test_batch_size,
         shuffle=False,
         distributors=[
             ref1_result_distributor,
@@ -337,14 +291,9 @@ if __name__ == "__main__":
         )
         return _image_flow_manager
 
-    training_output_main_label_flow_manager = __output_label_flow(
-        dataset_directory=training_output_main_label_folder,
-        batch_size=training_batch_size,
-        shuffle=True,
-    )
-    val_output_main_label_flow_manager = __output_label_flow(
-        dataset_directory=val_output_main_label_folder,
-        batch_size=val_batch_size,
+    test_output_main_label_flow_manager = __output_label_flow(
+        dataset_directory=test_output_main_label_folder,
+        batch_size=test_batch_size,
         shuffle=False,
     )
 
@@ -364,27 +313,14 @@ if __name__ == "__main__":
 
         return _generator, _samples, _nb_samples
 
-    (
-        training_generator,
-        training_samples,
-        training_nb_samples,
-    ) = __inout_dist_generator_infos(
+    (test_generator, test_samples, test_nb_samples,) = __inout_dist_generator_infos(
         input_flows=[
-            training_main_image_flow_manager,
-            training_ref_image_flow_manager,
-            training_ref_result_flow_manager,
+            test_main_image_flow_manager,
+            test_ref_image_flow_manager,
+            test_ref_result_flow_manager,
         ],
-        output_flows=[training_output_main_label_flow_manager],
-        batch_size=training_batch_size,
-    )
-    (val_generator, val_samples, val_nb_samples) = __inout_dist_generator_infos(
-        input_flows=[
-            val_main_image_flow_manager,
-            val_ref_image_flow_manager,
-            val_ref_result_flow_manager,
-        ],
-        output_flows=[val_output_main_label_flow_manager],
-        batch_size=val_batch_size,
+        output_flows=[test_output_main_label_flow_manager],
+        batch_size=test_batch_size,
     )
 
     # 2.4 Custom Generator Transform ---------
@@ -429,66 +365,26 @@ if __name__ == "__main__":
                 [modified_output],
             )
 
-    training_generator2 = _zipped_transform(training_generator)
-    val_generator2 = _zipped_transform(val_generator)
+    test_generator2 = _zipped_transform(test_generator)
 
-    # 3. Training
+    # 3. Test
     # -----------
     # 3.1 Parameters ---------
-    training_num_of_epochs: int = 200
-    training_steps_per_epoch: int = training_samples // training_batch_size
+    test_steps = test_samples // test_batch_size
 
-    val_freq: int = 1
-    val_steps: int = val_samples // val_batch_size
-
-    # 3.2 Callbacks ---------
-    apply_callbacks_after: int = 0
-    early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
-
-    val_metric = model.metrics[-1].name
-    val_checkpoint_metric = "val_" + val_metric
-    model_checkpoint: Callback = ModelCheckpointAfter(
-        os.path.join(
-            save_weights_folder,
-            training_id[1:]
-            + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-"
-            + val_checkpoint_metric
-            + "_{"
-            + val_checkpoint_metric
-            + ":.3f}.hdf5",
-            # + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-val_mean_iou_{val_mean_iou:.3f}.hdf5",
-        ),
-        verbose=1,
-        after_epoch=apply_callbacks_after,
-    )
-    early_stopping: Callback = EarlyStoppingAfter(
-        patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
-    )
-    callback_list: List[Callback] = [model_checkpoint, early_stopping]
-
-    # 3.3 Training ---------
-    history: History = model.fit_generator(
-        training_generator2,
-        callbacks=callback_list,
-        steps_per_epoch=training_steps_per_epoch,
-        epochs=training_num_of_epochs,
-        verbose=1,
-        validation_data=val_generator2,
-        validation_steps=val_steps,
-        validation_freq=val_freq,
-        max_queue_size=10,
-        workers=1,
-        use_multiprocessing=False,
-        shuffle=True,
-        initial_epoch=0,
+    test_loss, test_acc = model.evaluate_generator(
+        test_generator2, steps=test_steps, verbose=1, max_queue_size=1
     )
 
-    # History display
-    history_target_folder, acc_plot_image_name, loss_plot_image_name = acc_loss_plot(
-        history.history[val_metric],
-        history.history["loss"],
-        history.history["val_{}".format(val_metric)],
-        history.history["val_loss"],
-        training_id[1:],
-        save_weights_folder,
+    metric_names = list(map(lambda el: el.name, model.metrics))
+
+    print(
+        "loss : {}".format(
+            dict(map(lambda kv: (kv[0], kv[1].name), model.loss.items()))
+        )
     )
+    print("loss weights : {}".format(model.loss_weights))
+    print("metrics : {}".format(list(map(lambda el: el.name, model.metrics))))
+
+    print("test_loss: {}".format(test_loss))
+    print("test_acc: {}".format(test_acc))
