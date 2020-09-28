@@ -1,7 +1,8 @@
-from typing import Callable, List, Tuple
+from typing import Callable, Generator, List, Tuple
 
 import keras
 import numpy as np
+import toolz
 from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from image_keras.utils.image_color_transform import (
@@ -9,11 +10,15 @@ from image_keras.utils.image_color_transform import (
     image_detach_with_id_color_probability_list,
 )
 from image_keras.utils.image_info import get_all_colors
-from image_keras.utils.image_transform import gray_image_apply_clahe, img_to_minmax
+from image_keras.utils.image_transform import (
+    InterpolationEnum,
+    gray_image_apply_clahe,
+    img_resize,
+    img_to_minmax,
+)
 from keras.metrics import Metric
 from keras.models import Model
 from keras.optimizers import Adam, Optimizer
-
 from models.color_tracking.model_006.model import model_006
 
 bin_size: int = 30
@@ -42,46 +47,34 @@ input_ref_image_preprocessing_function: Callable[
 ] = gray_image_apply_clahe
 
 
-def input_ref1_label_preprocessing_function(label: np.ndarray) -> np.ndarray:
-    label_color_num: List[Tuple[Tuple[int, int, int], int]] = get_all_colors(
-        label, True
+def generate_color_map(
+    img: np.ndarray, zero_first: bool = True, add_black_if_not_exist: bool = False
+) -> List[Tuple[int, Tuple[int, int, int]]]:
+    img_color_num: List[Tuple[Tuple[int, int, int], int]] = get_all_colors(
+        img, zero_first
     )[:bin_size]
-    label_color_list: List[Tuple[int, int, int]] = list(
-        map(lambda el: el[0], label_color_num)
+    img_color_list: List[Tuple[int, int, int]] = list(
+        map(lambda el: el[0], img_color_num)
     )
-    id_color_list: List[Tuple[int, Tuple[int, int, int]]] = color_map_generate(
-        label_color_list, True
-    )
+    return color_map_generate(img_color_list, add_black_if_not_exist)
+
+
+def input_ref1_label_preprocessing_function(label: np.ndarray) -> np.ndarray:
+    id_color_list = generate_color_map(label, True, True)
     return image_detach_with_id_color_probability_list(
         label, id_color_list, bin_size, 2
     )
 
 
 def input_ref2_label_preprocessing_function(label: np.ndarray) -> np.ndarray:
-    label_color_num: List[Tuple[Tuple[int, int, int], int]] = get_all_colors(
-        label, True
-    )[:bin_size]
-    label_color_list: List[Tuple[int, int, int]] = list(
-        map(lambda el: el[0], label_color_num)
-    )
-    id_color_list: List[Tuple[int, Tuple[int, int, int]]] = color_map_generate(
-        label_color_list, True
-    )
+    id_color_list = generate_color_map(label, True, True)
     return image_detach_with_id_color_probability_list(
         label, id_color_list, bin_size, 1
     )
 
 
 def input_ref3_label_preprocessing_function(label: np.ndarray) -> np.ndarray:
-    label_color_num: List[Tuple[Tuple[int, int, int], int]] = get_all_colors(
-        label, True
-    )[:bin_size]
-    label_color_list: List[Tuple[int, int, int]] = list(
-        map(lambda el: el[0], label_color_num)
-    )
-    id_color_list: List[Tuple[int, Tuple[int, int, int]]] = color_map_generate(
-        label_color_list, True
-    )
+    id_color_list = generate_color_map(label, True, True)
     return image_detach_with_id_color_probability_list(
         label, id_color_list, bin_size, 0
     )
@@ -90,15 +83,7 @@ def input_ref3_label_preprocessing_function(label: np.ndarray) -> np.ndarray:
 def output_label_preprocessing_function(
     label: np.ndarray, ref3_label: np.ndarray
 ) -> np.ndarray:
-    ref3_label_color_num: List[Tuple[Tuple[int, int, int], int]] = get_all_colors(
-        ref3_label, True
-    )[:bin_size]
-    ref3_label_color_list: List[Tuple[int, int, int]] = list(
-        map(lambda el: el[0], ref3_label_color_num)
-    )
-    ref3_id_color_list: List[Tuple[int, Tuple[int, int, int]]] = color_map_generate(
-        ref3_label_color_list, True
-    )
+    ref3_id_color_list = generate_color_map(ref3_label, True, True)
     return image_detach_with_id_color_probability_list(
         label, ref3_id_color_list, bin_size, 0
     )
@@ -154,3 +139,76 @@ class Model006ModelHelper(ModelHelper):
             target_tensors=target_tensors,
             **kwargs
         )
+
+
+# single processing
+def processing_for_grayscale_img(img: np.ndarray):
+    if len(img.shape) == 2:
+        img = np.reshape(img, (img.shape[0], img.shape[1], 1),)
+    return img
+
+
+def single_input_main_image_preprocessing(img: np.ndarray) -> np.ndarray:
+    resize_to = model006_model_descriptor_default.get_input_sizes()[0]
+    resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
+    img = img_resize(img, resize_to, resize_interpolation)
+    img = input_ref_image_preprocessing_function(img)
+    img = processing_for_grayscale_img(img)
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, resize_to, resize_interpolation),
+        input_main_image_preprocessing_function,
+        processing_for_grayscale_img,
+    )(img)
+
+
+def single_input_ref_image_preprocessing(img: np.ndarray) -> np.ndarray:
+    resize_to = model006_model_descriptor_default.get_input_sizes()[0]
+    resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, resize_to, resize_interpolation),
+        input_ref_image_preprocessing_function,
+        lambda _img: processing_for_grayscale_img(_img),
+    )(img)
+
+
+def single_input_ref1_result_preprocessing(img: np.ndarray) -> np.ndarray:
+    resize_to = model006_model_descriptor_default.get_input_sizes()[0]
+    resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, resize_to, resize_interpolation),
+        input_ref1_label_preprocessing_function,
+    )(img)
+
+
+def single_input_ref2_result_preprocessing(img: np.ndarray) -> np.ndarray:
+    resize_to = model006_model_descriptor_default.get_input_sizes()[0]
+    resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, resize_to, resize_interpolation),
+        input_ref2_label_preprocessing_function,
+    )(img)
+
+
+def single_input_ref3_result_preprocessing(img: np.ndarray) -> np.ndarray:
+    resize_to = model006_model_descriptor_default.get_input_sizes()[0]
+    resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, resize_to, resize_interpolation),
+        input_ref3_label_preprocessing_function,
+    )(img)
+
+
+def single_generator(
+    main_img: np.ndarray,
+    ref_image: np.ndarray,
+    ref1_result: np.ndarray,
+    ref2_result: np.ndarray,
+    ref3_result: np.ndarray,
+) -> Generator:
+    for index in range(1):
+        main_img = np.reshape(main_img, (1,) + main_img.shape)
+        ref_image = np.reshape(ref_image, (1,) + ref_image.shape)
+        ref1_result = np.reshape(ref1_result, (1,) + ref1_result.shape)
+        ref2_result = np.reshape(ref2_result, (1,) + ref2_result.shape)
+        ref3_result = np.reshape(ref3_result, (1,) + ref3_result.shape)
+        yield [main_img, ref_image, ref1_result, ref2_result, ref3_result]
