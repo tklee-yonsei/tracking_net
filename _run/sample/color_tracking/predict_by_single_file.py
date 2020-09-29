@@ -95,7 +95,8 @@ if __name__ == "__main__":
     weights_path: str = os.path.join(
         save_weights_folder,
         # "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
-        "training__model_model_006__run_20200928-205207.epoch_02-val_loss_0.056-val_acc_0.960.hdf5",
+        # "training__model_model_006__run_20200928-205207.epoch_02-val_loss_0.056-val_acc_0.960.hdf5",
+        "training__model_model_006__run_20200929-095939.epoch_10-val_loss_0.039-val_acc_0.965.hdf5",
     )
     model.load_weights(weights_path)
 
@@ -107,7 +108,9 @@ if __name__ == "__main__":
     common_files = sorted(common_py.files_in_folder(predict_main_image_folder))
 
     for index, common_file in enumerate(common_files):
-        print("Predict {0} ({1}/{2})".format(common_file, index + 1, len(common_file),))
+        print(
+            "Predict {0} ({1}/{2})".format(common_file, index + 1, len(common_files),)
+        )
         this_files = [common_file]
 
         # 결과 파일에서 bin을 컬러 이미지로 복원하기 위한 빈 컬러 맵
