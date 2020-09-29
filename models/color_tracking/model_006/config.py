@@ -17,6 +17,7 @@ from image_keras.utils.image_transform import (
     gray_image_apply_clahe,
     img_resize,
     img_to_minmax,
+    img_to_ratio,
 )
 from keras.metrics import Metric
 from keras.models import Model
@@ -162,6 +163,7 @@ def single_input_main_image_preprocessing(
     )(img)
     if full_path_optional:
         cv2.imwrite(os.path.join(full_path_optional[0], full_path_optional[1]), img)
+    img = img_to_ratio(img)
     return img
 
 
@@ -177,6 +179,7 @@ def single_input_ref_image_preprocessing(
     )(img)
     if full_path_optional:
         cv2.imwrite(os.path.join(full_path_optional[0], full_path_optional[1]), img)
+    img = img_to_ratio(img)
     return img
 
 
