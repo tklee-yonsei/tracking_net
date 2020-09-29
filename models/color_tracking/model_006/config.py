@@ -1,5 +1,7 @@
-from typing import Callable, Generator, List, Tuple
+import os
+from typing import Callable, Generator, List, Optional, Tuple
 
+import cv2
 import keras
 import numpy as np
 import toolz
@@ -148,51 +150,83 @@ def processing_for_grayscale_img(img: np.ndarray):
     return img
 
 
-def single_input_main_image_preprocessing(img: np.ndarray) -> np.ndarray:
+def single_input_main_image_preprocessing(
+    img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
+) -> np.ndarray:
     resize_to = model006_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
-    return toolz.compose_left(
+    img = toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_main_image_preprocessing_function,
         processing_for_grayscale_img,
     )(img)
+    if full_path_optional:
+        cv2.imwrite(os.path.join(full_path_optional[0], full_path_optional[1]), img)
+    return img
 
 
-def single_input_ref_image_preprocessing(img: np.ndarray) -> np.ndarray:
+def single_input_ref_image_preprocessing(
+    img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
+) -> np.ndarray:
     resize_to = model006_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
-    return toolz.compose_left(
+    img = toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_ref_image_preprocessing_function,
         processing_for_grayscale_img,
     )(img)
+    if full_path_optional:
+        cv2.imwrite(os.path.join(full_path_optional[0], full_path_optional[1]), img)
+    return img
 
 
-def single_input_ref1_result_preprocessing(img: np.ndarray) -> np.ndarray:
+def bin_save(img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None):
+    if full_path_optional:
+        for i in range(img.shape[2]):
+            img_name = full_path_optional[1][
+                : full_path_optional[1].rfind(".")
+            ] + "_{:02d}.png".format(i)
+            img_fullpath = os.path.join(full_path_optional[0], img_name)
+            cv2.imwrite(img_fullpath, img[:, :, i] * 255)
+
+
+def single_input_ref1_result_preprocessing(
+    img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
+) -> np.ndarray:
     resize_to = model006_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
-    return toolz.compose_left(
+    img = toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_ref1_label_preprocessing_function,
     )(img)
+    bin_save(img, full_path_optional)
+    return img
 
 
-def single_input_ref2_result_preprocessing(img: np.ndarray) -> np.ndarray:
+def single_input_ref2_result_preprocessing(
+    img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
+) -> np.ndarray:
     resize_to = model006_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
-    return toolz.compose_left(
+    img = toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_ref2_label_preprocessing_function,
     )(img)
+    bin_save(img, full_path_optional)
+    return img
 
 
-def single_input_ref3_result_preprocessing(img: np.ndarray) -> np.ndarray:
+def single_input_ref3_result_preprocessing(
+    img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
+) -> np.ndarray:
     resize_to = model006_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
-    return toolz.compose_left(
+    img = toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_ref3_label_preprocessing_function,
     )(img)
+    bin_save(img, full_path_optional)
+    return img
 
 
 def single_generator(

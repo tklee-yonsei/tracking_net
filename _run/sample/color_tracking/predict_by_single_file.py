@@ -119,25 +119,46 @@ if __name__ == "__main__":
         )
         print(prev_id_color_list)
 
-        # main image
+        # a) main image
         main_img = cv2.imread(
             os.path.join(predict_main_image_folder, common_file), cv2.IMREAD_GRAYSCALE,
         )
         main_img = single_input_main_image_preprocessing(main_img)
+        # save main image pre processing result
+        # main_img = single_input_main_image_preprocessing(
+        #     main_img, (os.path.join(predict_result_folder), "_main_" + common_file),
+        # )
 
-        # ref image
+        # b) ref image
         ref_img = cv2.imread(
             os.path.join(predict_ref_image_folder, common_file), cv2.IMREAD_GRAYSCALE,
         )
         ref_img = single_input_ref_image_preprocessing(ref_img)
+        # save ref image pre processing result
+        # ref_img = single_input_ref_image_preprocessing(
+        #     ref_img, (os.path.join(predict_result_folder), "_ref_" + common_file),
+        # )
 
-        # ref result
+        # c) ref result
         ref_result = cv2.imread(
             os.path.join(predict_ref_result_label_folder, common_file)
         )
         ref1_result = single_input_ref1_result_preprocessing(ref_result)
         ref2_result = single_input_ref2_result_preprocessing(ref_result)
         ref3_result = single_input_ref3_result_preprocessing(ref_result)
+        # save ref results pre processing result
+        # ref1_result = single_input_ref1_result_preprocessing(
+        #     ref_result,
+        #     (os.path.join(predict_result_folder), "_ref1_result_" + common_file),
+        # )
+        # ref2_result = single_input_ref2_result_preprocessing(
+        #     ref_result,
+        #     (os.path.join(predict_result_folder), "_ref2_result_" + common_file),
+        # )
+        # ref3_result = single_input_ref3_result_preprocessing(
+        #     ref_result,
+        #     (os.path.join(predict_result_folder), "_ref3_result_" + common_file),
+        # )
 
         predict_generator = single_generator(
             main_img, ref_img, ref1_result, ref2_result, ref3_result
