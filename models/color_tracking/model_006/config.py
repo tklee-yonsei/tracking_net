@@ -151,9 +151,6 @@ def processing_for_grayscale_img(img: np.ndarray):
 def single_input_main_image_preprocessing(img: np.ndarray) -> np.ndarray:
     resize_to = model006_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
-    img = img_resize(img, resize_to, resize_interpolation)
-    img = input_ref_image_preprocessing_function(img)
-    img = processing_for_grayscale_img(img)
     return toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_main_image_preprocessing_function,
@@ -167,7 +164,7 @@ def single_input_ref_image_preprocessing(img: np.ndarray) -> np.ndarray:
     return toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),
         input_ref_image_preprocessing_function,
-        lambda _img: processing_for_grayscale_img(_img),
+        processing_for_grayscale_img,
     )(img)
 
 

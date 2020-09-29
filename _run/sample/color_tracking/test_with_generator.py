@@ -41,6 +41,7 @@ if __name__ == "__main__":
     # 0.2 Folder ---------
 
     # a) model, weights, result
+    base_dataset_folder: str = os.path.join("dataset")
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
@@ -49,7 +50,7 @@ if __name__ == "__main__":
     common_py.create_folder(test_result_folder)
 
     # b) dataset folders
-    test_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
+    test_dataset_folder: str = os.path.join(base_dataset_folder, "ivan_filtered_test")
     # input - main image
     test_main_image_folder: str = os.path.join(test_dataset_folder, "image", "current")
     # input - ref image
@@ -76,7 +77,8 @@ if __name__ == "__main__":
     # c) load weights
     weights_path: str = os.path.join(
         save_weights_folder,
-        "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
+        # "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
+        "training__model_model_006__run_20200928-150618.epoch_01-val_loss_0.084-val_acc_0.960.hdf5",
     )
     model.load_weights(weights_path)
 

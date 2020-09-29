@@ -49,6 +49,7 @@ if __name__ == "__main__":
     # 0.2 Folder ---------
 
     # a) model, weights, result
+    base_dataset_folder: str = os.path.join("dataset")
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
@@ -60,9 +61,11 @@ if __name__ == "__main__":
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
-        base_data_folder, "ivan_filtered_training"
+        base_dataset_folder, "ivan_filtered_training"
     )
-    val_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_validation")
+    val_dataset_folder: str = os.path.join(
+        base_dataset_folder, "ivan_filtered_validation"
+    )
     # input - main image
     training_main_image_folder: str = os.path.join(
         training_dataset_folder, "image", "current"
@@ -255,28 +258,32 @@ if __name__ == "__main__":
             cv2.imwrite(img_fullpath, image[:, :, i] * 255)
 
     ref1_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[2],
+        resize_to=input_sizes[0],
         image_transform_function=input_ref1_label_preprocessing_function,
         # each_transformed_image_save_function_optional=toolz.curry(
         #     save_batch_transformed_img2
         # )(training_result_folder, "training_ref1_result_"),
     )
     ref2_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[3],
+        resize_to=input_sizes[0],
         image_transform_function=input_ref2_label_preprocessing_function,
         # each_transformed_image_save_function_optional=toolz.curry(
         #     save_batch_transformed_img2
         # )(training_result_folder, "training_ref2_result_"),
     )
     ref3_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[4],
+        resize_to=input_sizes[0],
         image_transform_function=input_ref3_label_preprocessing_function,
         # each_transformed_image_save_function_optional=toolz.curry(
         #     save_batch_transformed_img2
         # )(training_result_folder, "training_ref3_result_"),
     )
     output_helper_ref_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[4]
+        resize_to=input_sizes[0],
+        # image_transform_function=lambda im: im,
+        # each_transformed_image_save_function_optional=toolz.curry(
+        #     save_batch_transformed_img
+        # )(training_result_folder, "training_output_helper_ref_"),
     )
 
     training_ref_result_flow_manager = __input_result_label_flow(

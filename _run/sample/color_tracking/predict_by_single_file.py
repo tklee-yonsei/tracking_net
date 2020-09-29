@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.append(os.getcwd())
 
@@ -52,6 +52,7 @@ if __name__ == "__main__":
     # 0.2 Folder ---------
 
     # a) model, weights, result
+    base_dataset_folder: str = os.path.join("dataset")
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
@@ -60,7 +61,9 @@ if __name__ == "__main__":
     common_py.create_folder(predict_result_folder)
 
     # b) dataset folders
-    predict_dataset_folder: str = os.path.join(base_data_folder, "ivan_filtered_test")
+    predict_dataset_folder: str = os.path.join(
+        base_dataset_folder, "ivan_filtered_test"
+    )
     # input - main image
     predict_main_image_folder: str = os.path.join(
         predict_dataset_folder, "image", "current"
@@ -91,7 +94,8 @@ if __name__ == "__main__":
     # c) load weights
     weights_path: str = os.path.join(
         save_weights_folder,
-        "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
+        # "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
+        "training__model_model_006__run_20200928-205207.epoch_02-val_loss_0.056-val_acc_0.960.hdf5",
     )
     model.load_weights(weights_path)
 
@@ -125,7 +129,7 @@ if __name__ == "__main__":
         ref_img = cv2.imread(
             os.path.join(predict_ref_image_folder, common_file), cv2.IMREAD_GRAYSCALE,
         )
-        ref_img = single_input_ref_image_preprocessing(main_img)
+        ref_img = single_input_ref_image_preprocessing(ref_img)
 
         # ref result
         ref_result = cv2.imread(
@@ -144,22 +148,22 @@ if __name__ == "__main__":
         # 결과 출력
         result = results[0]  # (256, 256, 30)
 
-        # 1) 각 빈에 대한 결과 출력.
-        # t_name = list(map(lambda n: "{}".format(Path(n).stem), this_files))
+        # 1) np 파일로 결과 저장
         # np.save(
         #     os.path.join(predict_result_folder, common_file[: common_file.rfind(".")],),
         #     result,
         # )
+
+        # 2) 각 빈에 대한 결과 출력.
+        # t_name = list(map(lambda n: "{}".format(Path(n).stem), this_files))
         # for bin_id in range(result.shape[2]):
         #     img = result[:, :, bin_id : bin_id + 1]
-
         #     name_list = list(
         #         map(
         #             lambda n: "{}_{:02d}.png".format(Path(n).stem, bin_id + 1),
         #             this_files,
         #         )
         #     )
-
         #     img = img * 255
         #     cv2.imwrite(os.path.join(predict_result_folder, name_list[0]), img)
 
@@ -167,14 +171,12 @@ if __name__ == "__main__":
             bin_probability_arr: np.ndarray,
             id_color_dict: Dict[int, Tuple[int, int, int]],
             default_value: Tuple[int, int, int],
-            # exclude_black: bool = True,
         ) -> np.ndarray:
             argmax_arr = np.argmax(bin_probability_arr, axis=2)
-            # argmax_arr = argmax_arr + (1,) if exclude_black else argmax_arr
             return np.asarray(
                 [[id_color_dict.get(k, default_value) for k in k1] for k1 in argmax_arr]
             )
 
-        # 2) 종합 결과 출력 (색상 복원 및 저장)
+        # 3) 종합 결과 출력 (색상 복원 및 저장)
         color_img = reduce_result(result, dict(prev_id_color_list), (0, 0, 0))
         cv2.imwrite(os.path.join(predict_result_folder, this_files[0]), color_img)
