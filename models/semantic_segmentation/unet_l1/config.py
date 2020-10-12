@@ -1,22 +1,21 @@
 from typing import Callable, List
 
-import keras
 import numpy as np
 from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from image_keras.utils.image_transform import gray_image_apply_clahe, img_to_minmax
-from keras.metrics import Metric
-from keras.models import Model
-from keras.optimizers import Adam, Optimizer
-
 from models.semantic_segmentation.unet_l1.model import unet_l1
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.metrics import BinaryAccuracy, Metric
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam, Optimizer
 
 unet_l1_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
 )
 
 unet_l1_loss_descriptors_default: List[LossDescriptor] = [
-    LossDescriptor(loss=keras.losses.BinaryCrossentropy(), weight=1.0)
+    LossDescriptor(loss=BinaryCrossentropy(), weight=1.0)
 ]
 
 input_image_preprocessing_function: Callable[
@@ -50,7 +49,7 @@ class UnetL1ModelHelper(ModelHelper):
         optimizer: Optimizer = Adam(lr=1e-4),
         loss_list: List[LossDescriptor] = unet_l1_loss_descriptors_default,
         metrics: List[Metric] = [
-            keras.metrics.BinaryAccuracy(name="accuracy"),
+            BinaryAccuracy(name="accuracy"),
             BinaryClassMeanIoU(name="mean_iou"),
         ],
         sample_weight_mode=None,

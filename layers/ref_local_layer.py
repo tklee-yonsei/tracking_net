@@ -1,7 +1,8 @@
 import tensorflow as tf
+from tensorflow.keras.layers import Layer
 
 
-class RefLocal(tf.keras.layers.Layer):
+class RefLocal(Layer):
     def __init__(self, bin_size: int, k_size: int = 5, mode: str = "dot", **kwargs):
         super().__init__(**kwargs)
         self.bin_size = bin_size

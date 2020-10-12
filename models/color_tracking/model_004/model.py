@@ -1,9 +1,9 @@
 from typing import List, Tuple
 
-import keras
-from keras import losses, optimizers
-from keras.layers import *
-from keras.models import *
+from tensorflow import keras
+from tensorflow.keras import losses, optimizers
+from tensorflow.keras.layers import *
+from tensorflow.keras.models import *
 
 from seg_models.unet_l4.unet_l4 import unet_l4
 

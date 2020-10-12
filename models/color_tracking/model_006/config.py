@@ -2,10 +2,8 @@ import os
 from typing import Callable, Generator, List, Optional, Tuple
 
 import cv2
-import keras
 import numpy as np
 import toolz
-from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from image_keras.utils.image_color_transform import (
     color_map_generate,
@@ -16,13 +14,13 @@ from image_keras.utils.image_transform import (
     InterpolationEnum,
     gray_image_apply_clahe,
     img_resize,
-    img_to_minmax,
     img_to_ratio,
 )
-from keras.metrics import Metric
-from keras.models import Model
-from keras.optimizers import Adam, Optimizer
 from models.color_tracking.model_006.model import model_006
+from tensorflow.keras.metrics import Metric
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam, Optimizer
+from tensorflow.python.keras.metrics import CategoricalAccuracy
 
 bin_size: int = 30
 
@@ -125,7 +123,7 @@ class Model006ModelHelper(ModelHelper):
         model: Model,
         optimizer: Optimizer = Adam(lr=1e-4),
         loss_list: List[LossDescriptor] = model006_loss_descriptors_default,
-        metrics: List[Metric] = [keras.metrics.CategoricalAccuracy(name="acc")],
+        metrics: List[Metric] = [CategoricalAccuracy(name="acc")],
         sample_weight_mode=None,
         weighted_metrics=None,
         target_tensors=None,

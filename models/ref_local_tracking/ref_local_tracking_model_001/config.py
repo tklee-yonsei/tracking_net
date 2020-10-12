@@ -2,11 +2,8 @@ import os
 from typing import Callable, Generator, List, Optional, Tuple
 
 import cv2
-import keras
 import numpy as np
-import tensorflow as tf
 import toolz
-from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from image_keras.utils.image_color_transform import (
     color_map_generate,
@@ -17,12 +14,14 @@ from image_keras.utils.image_transform import (
     InterpolationEnum,
     gray_image_apply_clahe,
     img_resize,
-    img_to_minmax,
     img_to_ratio,
 )
 from models.ref_local_tracking.ref_local_tracking_model_001.model import (
     ref_local_tracking_model_001,
 )
+from tensorflow.keras.metrics import CategoricalAccuracy, Metric
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam, Optimizer
 
 bin_size: int = 30
 
@@ -79,14 +78,14 @@ def output_label_preprocessing_function(
 class RefModel001ModelHelper(ModelHelper):
     def __init__(
         self,
-        pre_trained_unet_l4_model: tf.keras.models.Model,
+        pre_trained_unet_l4_model: Model,
         model_descriptor: ModelDescriptor = ref_local_tracking_model_001_model_descriptor_default,
         alpha: float = 1.0,
     ):
         super().__init__(model_descriptor, alpha)
         self.pre_trained_unet_l4_model = pre_trained_unet_l4_model
 
-    def get_model(self) -> tf.keras.models.Model:
+    def get_model(self) -> Model:
         return ref_local_tracking_model_001(
             pre_trained_unet_l4_model=self.pre_trained_unet_l4_model,
             input_main_image_name=self.model_descriptor.inputs[0][0],
@@ -102,17 +101,15 @@ class RefModel001ModelHelper(ModelHelper):
 
     def compile_model(
         self,
-        model: tf.keras.models.Model,
-        optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(lr=1e-4),
+        model: Model,
+        optimizer: Optimizer = Adam(lr=1e-4),
         loss_list: List[LossDescriptor] = model001_loss_descriptors_default,
-        metrics: List[tf.keras.metrics.Metric] = [
-            keras.metrics.CategoricalAccuracy(name="acc")
-        ],
+        metrics: List[Metric] = [CategoricalAccuracy(name="acc")],
         sample_weight_mode=None,
         weighted_metrics=None,
         target_tensors=None,
         **kwargs
-    ) -> tf.keras.models.Model:
+    ) -> Model:
         return super().compile_model(
             model=model,
             optimizer=optimizer,

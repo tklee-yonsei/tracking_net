@@ -3,13 +3,16 @@ import time
 
 import common_py
 import cv2
-import keras
 import numpy as np
 import tensorflow as tf
 import toolz
 from image_keras.custom.metrics import binary_class_mean_iou
 from image_keras.model_io import load_model
 from image_keras.utils.image_transform import gray_image_apply_clahe, img_to_ratio
+from tensorflow.keras.losses import binary_crossentropy
+from tensorflow.keras.metrics import BinaryAccuracy
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
 
 # GPU Setting
 gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -58,7 +61,7 @@ if __name__ == "__main__":
     # model
     model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
-    model: keras.models.Model = load_model(model_path, weights_path)
+    model: Model = load_model(model_path, weights_path)
 
     # generator
     batch_size: int = 1
@@ -101,11 +104,12 @@ if __name__ == "__main__":
     test_generator = zip(input_generator, output_generator)
 
     # test
+
     test_steps = len(label_files)
     model.compile(
-        optimizer=keras.optimizers.Adam(lr=1e-4),
-        loss=keras.losses.binary_crossentropy,
-        metrics=[keras.metrics.BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
+        optimizer=Adam(lr=1e-4),
+        loss=binary_crossentropy,
+        metrics=[BinaryAccuracy(name="accuracy"), binary_class_mean_iou],
     )
 
     test_loss, test_acc, test_mean_iou = model.evaluate_generator(

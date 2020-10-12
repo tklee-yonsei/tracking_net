@@ -1,8 +1,9 @@
 from typing import Tuple
 
-import tensorflow as tf
 from layers.ref_local_layer import RefLocal
 from models.gpu_check import check_first_gpu
+from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
+from tensorflow.keras.models import Model
 
 check_first_gpu()
 
@@ -18,7 +19,7 @@ check_first_gpu()
 
 
 def ref_local_tracking_model_001(
-    pre_trained_unet_l4_model: tf.keras.models.Model,
+    pre_trained_unet_l4_model: Model,
     input_main_image_name: str,
     input_main_image_shape: Tuple[int, int, int],
     input_ref_image_name: str,
@@ -45,111 +46,109 @@ def ref_local_tracking_model_001(
         pre_trained_unet_l4_model.layers[27].name,
     ]
 
-    unet_l4_skip_1_model = tf.keras.models.Model(
+    unet_l4_skip_1_model = Model(
         inputs=pre_trained_unet_l4_model.input,
         outputs=pre_trained_unet_l4_model.get_layer(skip_names[0]).output,
     )
-    unet_l4_skip_2_model = tf.keras.models.Model(
+    unet_l4_skip_2_model = Model(
         inputs=pre_trained_unet_l4_model.input,
         outputs=pre_trained_unet_l4_model.get_layer(skip_names[1]).output,
     )
-    unet_l4_skip_3_model = tf.keras.models.Model(
+    unet_l4_skip_3_model = Model(
         inputs=pre_trained_unet_l4_model.input,
         outputs=pre_trained_unet_l4_model.get_layer(skip_names[2]).output,
     )
-    unet_l4_skip_4_model = tf.keras.models.Model(
+    unet_l4_skip_4_model = Model(
         inputs=pre_trained_unet_l4_model.input,
         outputs=pre_trained_unet_l4_model.get_layer(skip_names[3]).output,
     )
-    unet_l4_skip_result_model = tf.keras.models.Model(
+    unet_l4_skip_result_model = Model(
         inputs=pre_trained_unet_l4_model.input,
         outputs=pre_trained_unet_l4_model.get_layer(skip_names[4]).output,
     )
 
     # 입력
-    main_image_input: tf.keras.layers.Layer = tf.keras.layers.Input(
+    main_image_input: Layer = Input(
         shape=input_main_image_shape, name=input_main_image_name
     )
-    ref_image_input: tf.keras.layers.Layer = tf.keras.layers.Input(
+    ref_image_input: Layer = Input(
         shape=input_ref_image_shape, name=input_ref_image_name
     )
-    ref_label_input: tf.keras.layers.Layer = tf.keras.layers.Input(
+    ref_label_input: Layer = Input(
         shape=input_ref_label_shape, name=input_ref_label_name
     )
 
     # First
     main_l4_1 = unet_l4_skip_1_model(main_image_input)
-    main_l4_1 = tf.keras.layers.Conv2D(
+    main_l4_1 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(main_l4_1)
     ref_l4_1 = unet_l4_skip_1_model(ref_image_input)
-    ref_l4_1 = tf.keras.layers.Conv2D(
+    ref_l4_1 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_1)
-    ref_local_l4_1: tf.keras.layers.Layer = RefLocal(
-        mode="dot", k_size=5, bin_size=bin_num
-    )([main_l4_1, ref_l4_1, ref_label_input])
-    l4_up_1 = tf.keras.layers.UpSampling2D(interpolation="bilinear")(ref_local_l4_1)
+    ref_local_l4_1: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
+        [main_l4_1, ref_l4_1, ref_label_input]
+    )
+    l4_up_1 = UpSampling2D(interpolation="bilinear")(ref_local_l4_1)
     # l4_up_1 = Conv2D(
     #     512, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     # )(l4_up_1)
 
     # Second
     main_l4_2 = unet_l4_skip_2_model(main_image_input)
-    main_l4_2 = tf.keras.layers.Conv2D(
+    main_l4_2 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(main_l4_2)
     ref_l4_2 = unet_l4_skip_2_model(ref_image_input)
-    ref_l4_2 = tf.keras.layers.Conv2D(
+    ref_l4_2 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_2)
-    ref_local_l4_2: tf.keras.layers.Layer = RefLocal(
-        mode="dot", k_size=5, bin_size=bin_num
-    )([main_l4_2, ref_l4_2, l4_up_1])
-    l4_up_2 = tf.keras.layers.UpSampling2D(interpolation="bilinear")(ref_local_l4_2)
+    ref_local_l4_2: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
+        [main_l4_2, ref_l4_2, l4_up_1]
+    )
+    l4_up_2 = UpSampling2D(interpolation="bilinear")(ref_local_l4_2)
 
     # Third
     main_l4_3 = unet_l4_skip_3_model(main_image_input)
-    main_l4_3 = tf.keras.layers.Conv2D(
+    main_l4_3 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(main_l4_3)
     ref_l4_3 = unet_l4_skip_3_model(ref_image_input)
-    ref_l4_3 = tf.keras.layers.Conv2D(
+    ref_l4_3 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_3)
-    ref_local_l4_3: tf.keras.layers.Layer = RefLocal(
-        mode="dot", k_size=5, bin_size=bin_num
-    )([main_l4_3, ref_l4_3, l4_up_2])
-    l4_up_3 = tf.keras.layers.UpSampling2D(interpolation="bilinear")(ref_local_l4_3)
+    ref_local_l4_3: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
+        [main_l4_3, ref_l4_3, l4_up_2]
+    )
+    l4_up_3 = UpSampling2D(interpolation="bilinear")(ref_local_l4_3)
 
     # Fourth
     main_l4_4 = unet_l4_skip_4_model(main_image_input)
     ref_l4_4 = unet_l4_skip_4_model(ref_image_input)
-    ref_local_l4_4: tf.keras.layers.Layer = RefLocal(
-        mode="dot", k_size=5, bin_size=bin_num
-    )([main_l4_4, ref_l4_4, l4_up_3])
+    ref_local_l4_4: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
+        [main_l4_4, ref_l4_4, l4_up_3]
+    )
 
     # Merge
     main_l4_res = unet_l4_skip_result_model(main_image_input)
-    # main_l4_res = tf.keras.layers.Conv2D(
+    # main_l4_res = Conv2D(
     #     113, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     # )(main_l4_res)
     ref_l4_res = unet_l4_skip_result_model(ref_image_input)
-    # ref_l4_res = tf.keras.layers.Conv2D(
+    # ref_l4_res = Conv2D(
     #     113, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     # )(ref_l4_res)
-    merge_layer: tf.keras.layers.Layer = tf.keras.layers.concatenate(
-        [main_l4_res, ref_l4_res, ref_local_l4_4], axis=3
-    )
+    merge_layer: Layer = concatenate([main_l4_res, ref_l4_res, ref_local_l4_4], axis=3)
 
-    merge_layer = tf.keras.layers.Conv2D(
+    merge_layer = Conv2D(
         256, 3, activation="relu", padding="same", kernel_initializer="he_normal",
     )(merge_layer)
-    merge_layer = tf.keras.layers.Conv2D(
+    merge_layer = Conv2D(
         256, 3, activation="relu", padding="same", kernel_initializer="he_normal",
     )(merge_layer)
 
-    total_conv: tf.keras.layers.Layer = tf.keras.layers.Conv2D(
+    total_conv: Layer = Conv2D(
         bin_num,
         1,
         activation="softmax",
@@ -158,7 +157,7 @@ def ref_local_tracking_model_001(
         kernel_initializer="he_normal",
     )(merge_layer)
 
-    return tf.keras.models.Model(
+    return Model(
         inputs=[main_image_input, ref_image_input, ref_label_input],
         outputs=[total_conv],
     )

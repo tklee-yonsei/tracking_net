@@ -8,7 +8,6 @@ import time
 
 import common_py
 import cv2
-import keras
 import numpy as np
 import tensorflow as tf
 import toolz
