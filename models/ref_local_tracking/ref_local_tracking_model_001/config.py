@@ -22,6 +22,7 @@ from models.ref_local_tracking.ref_local_tracking_model_001.model import (
 from tensorflow.keras.metrics import CategoricalAccuracy, Metric
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, Optimizer
+from tensorflow.keras.losses import CategoricalCrossentropy
 
 bin_size: int = 30
 
@@ -35,7 +36,7 @@ ref_local_tracking_model_001_model_descriptor_default: ModelDescriptor = ModelDe
 )
 
 model001_loss_descriptors_default: List[LossDescriptor] = [
-    LossDescriptor(loss=keras.losses.CategoricalCrossentropy(), weight=1.0)
+    LossDescriptor(loss=CategoricalCrossentropy(), weight=1.0)
 ]
 
 input_main_image_preprocessing_function: Callable[

@@ -23,8 +23,6 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from keras.callbacks import Callback, History
-
 from models.color_tracking.model_006 import (
     Model006ModelHelper,
     input_main_image_preprocessing_function,
@@ -34,7 +32,7 @@ from models.color_tracking.model_006 import (
     input_ref_image_preprocessing_function,
     output_label_preprocessing_function,
 )
-
+from tensorflow.keras.callbacks import Callback, History
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -452,7 +450,7 @@ if __name__ == "__main__":
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
 
-    val_metric = model.metrics[-1].name
+    val_metric = model.compiled_metrics._metrics[-1].name
     val_checkpoint_metric = "val_" + val_metric
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(

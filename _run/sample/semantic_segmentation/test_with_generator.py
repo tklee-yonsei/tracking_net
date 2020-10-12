@@ -7,7 +7,6 @@ sys.path.append(os.getcwd())
 import time
 
 import common_py
-import tensorflow as tf
 import toolz
 from image_keras.flow_directory import FlowFromDirectory, ImagesFromDirectory
 from image_keras.inout_generator import (
@@ -21,9 +20,7 @@ from image_keras.utils.image_transform import (
     img_to_minmax,
     img_to_ratio,
 )
-
 from models.semantic_segmentation.unet_l4.config import UnetL4ModelHelper
-
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -158,11 +155,17 @@ if __name__ == "__main__":
 
     print(
         "loss : {}".format(
-            dict(map(lambda kv: (kv[0], kv[1].name), model.loss.items()))
+            dict(
+                map(lambda kv: (kv[0], kv[1].name), model.compiled_loss._losses.items())
+            )
         )
     )
     print("loss weights : {}".format(model.loss_weights))
-    print("metrics : {}".format(list(map(lambda el: el.name, model.metrics))))
+    print(
+        "metrics : {}".format(
+            list(map(lambda el: el.name, model.compiled_metrics._metrics))
+        )
+    )
 
     print("test_loss: {}".format(test_loss))
     print("test_acc: {}".format(test_acc))

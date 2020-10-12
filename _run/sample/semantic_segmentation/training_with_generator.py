@@ -23,13 +23,12 @@ from image_keras.inout_generator import (
 )
 from image_keras.model_io import load_model
 from image_keras.utils.image_transform import img_to_ratio
-from keras.callbacks import Callback, History
-
 from models.semantic_segmentation.unet_l4 import (
     UnetL4ModelHelper,
     input_image_preprocessing_function,
     output_label_preprocessing_function,
 )
+from tensorflow.keras.callbacks import Callback, History
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -221,7 +220,7 @@ if __name__ == "__main__":
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
 
-    val_metric = model.metrics[1].name
+    val_metric = model.compiled_metrics._metrics[1].name
     val_checkpoint_metric = "val_" + val_metric
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(

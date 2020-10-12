@@ -378,15 +378,21 @@ if __name__ == "__main__":
         test_generator2, steps=test_steps, verbose=1, max_queue_size=1
     )
 
-    metric_names = list(map(lambda el: el.name, model.metrics))
+    metric_names = list(map(lambda el: el.name, model.compiled_metrics._metrics))
 
     print(
         "loss : {}".format(
-            dict(map(lambda kv: (kv[0], kv[1].name), model.loss.items()))
+            dict(
+                map(lambda kv: (kv[0], kv[1].name), model.compiled_loss._losses.items())
+            )
         )
     )
     print("loss weights : {}".format(model.loss_weights))
-    print("metrics : {}".format(list(map(lambda el: el.name, model.metrics))))
+    print(
+        "metrics : {}".format(
+            list(map(lambda el: el.name, model.compiled_metrics._metrics))
+        )
+    )
 
     print("test_loss: {}".format(test_loss))
     print("test_acc: {}".format(test_acc))

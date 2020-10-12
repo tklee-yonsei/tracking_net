@@ -23,8 +23,6 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from tensorflow.keras.callbacks import Callback, History
-
 from models.ref_local_tracking.ref_local_tracking_model_001 import (
     RefModel001ModelHelper,
     input_main_image_preprocessing_function,
@@ -32,17 +30,7 @@ from models.ref_local_tracking.ref_local_tracking_model_001 import (
     input_ref_label_preprocessing_function,
     output_label_preprocessing_function,
 )
-
-# from models.color_tracking.model_006 import (
-#     Model006ModelHelper,
-#     input_main_image_preprocessing_function,
-#     input_ref1_label_preprocessing_function,
-#     input_ref2_label_preprocessing_function,
-#     input_ref3_label_preprocessing_function,
-#     input_ref_image_preprocessing_function,
-#     output_label_preprocessing_function,
-# )
-
+from tensorflow.keras.callbacks import Callback, History
 
 if __name__ == "__main__":
     # 0. Prepare
@@ -453,23 +441,8 @@ if __name__ == "__main__":
     # 3.2 Callbacks ---------
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
-
-    val_metric = model.metrics[-1].name
+    val_metric = model.compiled_metrics._metrics[-1].name
     val_checkpoint_metric = "val_" + val_metric
-    # import tensorflow as tf
-
-    # tf_model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-    #     os.path.join(
-    #         save_weights_folder,
-    #         training_id[1:]
-    #         + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-"
-    #         + val_checkpoint_metric
-    #         + "_{"
-    #         + val_checkpoint_metric
-    #         + ":.3f}.hdf5",
-    #     ),
-    #     verbose=1,
-    # )
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
             save_weights_folder,
