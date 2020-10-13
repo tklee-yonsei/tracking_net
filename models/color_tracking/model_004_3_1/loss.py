@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-import keras
+from tensorflow import keras
 
 
 class CustomCategoricalCrossentropy(keras.losses.LossFunctionWrapper):
@@ -21,7 +21,7 @@ class CustomCategoricalCrossentropy(keras.losses.LossFunctionWrapper):
         )
 
 
-import keras.backend as K
+import tensorflow.keras.backend as K
 
 
 def categorical_crossentropy_t(y_true, y_pred, from_logits=False, label_smoothing=0):

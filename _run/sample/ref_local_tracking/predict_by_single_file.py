@@ -1,42 +1,24 @@
 import os
 import sys
-from pathlib import Path
 
 sys.path.append(os.getcwd())
 
 
-import math
 import time
-from typing import Callable, Dict, Generator, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import common_py
 import cv2
 import numpy as np
-import toolz
-from image_keras.flow_directory import FlowFromDirectory, ImagesFromDirectory
-from image_keras.inout_generator import (
-    DistFlowManager,
-    DistInOutGenerator,
-    Distributor,
-    save_batch_transformed_img,
+from models.ref_local_tracking.ref_local_tracking_model_001 import (
+    RefModel001ModelHelper,
 )
-from image_keras.utils.image_transform import img_to_ratio
-from models.color_tracking.model_006 import (
-    Model006ModelHelper,
-    input_main_image_preprocessing_function,
-    input_ref1_label_preprocessing_function,
-    input_ref2_label_preprocessing_function,
-    input_ref3_label_preprocessing_function,
-    input_ref_image_preprocessing_function,
-)
-from models.color_tracking.model_006.config import (
+from models.ref_local_tracking.ref_local_tracking_model_001.config import (
     generate_color_map,
     single_generator,
     single_input_main_image_preprocessing,
-    single_input_ref1_result_preprocessing,
-    single_input_ref2_result_preprocessing,
-    single_input_ref3_result_preprocessing,
     single_input_ref_image_preprocessing,
+    single_input_ref_result_preprocessing,
 )
 
 if __name__ == "__main__":
@@ -45,7 +27,7 @@ if __name__ == "__main__":
 
     # predict_id: 사용한 모델, Predict 날짜
     # 0.1 ID ---------
-    model_name: str = "model_006"
+    model_name: str = "ref_local_tracking_model_001"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
     predict_id: str = "_predict__model_{}__run_{}".format(model_name, run_id)
 
@@ -85,7 +67,7 @@ if __name__ == "__main__":
 
     unet_model_helper = UnetL4ModelHelper()
     unet_model = unet_model_helper.get_model()
-    model_helper = Model006ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel001ModelHelper(pre_trained_unet_l4_model=unet_model)
     model = model_helper.get_model()
 
     # b) compile
@@ -96,7 +78,7 @@ if __name__ == "__main__":
         save_weights_folder,
         # "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
         # "training__model_model_006__run_20200928-205207.epoch_02-val_loss_0.056-val_acc_0.960.hdf5",
-        "training__model_model_006__run_20200929-095939.epoch_10-val_loss_0.039-val_acc_0.965.hdf5",
+        "training__model_ref_local_tracking_model_001__run_20201007-105744.epoch_11-val_loss_0.096-val_acc_0.966.hdf5",
     )
     model.load_weights(weights_path)
 
@@ -146,9 +128,7 @@ if __name__ == "__main__":
         ref_result = cv2.imread(
             os.path.join(predict_ref_result_label_folder, common_file)
         )
-        ref1_result = single_input_ref1_result_preprocessing(ref_result)
-        ref2_result = single_input_ref2_result_preprocessing(ref_result)
-        ref3_result = single_input_ref3_result_preprocessing(ref_result)
+        ref1_result = single_input_ref_result_preprocessing(ref_result)
         # save ref results pre processing result
         # ref1_result = single_input_ref1_result_preprocessing(
         #     ref_result,
@@ -163,11 +143,11 @@ if __name__ == "__main__":
         #     (os.path.join(predict_result_folder), "_ref3_result_" + common_file),
         # )
 
-        predict_generator = single_generator(
-            main_img, ref_img, ref1_result, ref2_result, ref3_result
-        )
+        predict_generator = single_generator(main_img, ref_img, ref1_result)
 
-        results = model.predict_generator(predict_generator, 1, verbose=1)
+        results = model.predict_generator(
+            predict_generator, 1, verbose=1, max_queue_size=1
+        )
 
         # 결과 출력
         result = results[0]  # (256, 256, 30)

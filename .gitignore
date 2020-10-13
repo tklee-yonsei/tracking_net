@@ -1,5 +1,6 @@
 # For this project
 data/**
+dataset/**
 save/**
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode

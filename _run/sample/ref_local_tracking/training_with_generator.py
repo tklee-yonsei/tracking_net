@@ -23,13 +23,11 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from models.color_tracking.model_006 import (
-    Model006ModelHelper,
+from models.ref_local_tracking.ref_local_tracking_model_001 import (
+    RefModel001ModelHelper,
     input_main_image_preprocessing_function,
-    input_ref1_label_preprocessing_function,
-    input_ref2_label_preprocessing_function,
-    input_ref3_label_preprocessing_function,
     input_ref_image_preprocessing_function,
+    input_ref_label_preprocessing_function,
     output_label_preprocessing_function,
 )
 from tensorflow.keras.callbacks import Callback, History
@@ -40,7 +38,7 @@ if __name__ == "__main__":
 
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
-    model_name: str = "model_006"
+    model_name: str = "ref_local_tracking_model_001"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
     training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
 
@@ -94,7 +92,7 @@ if __name__ == "__main__":
     unet_model = unet_model_helper.get_model()
     unet_model_weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     unet_model.load_weights(unet_model_weights_path)
-    model_helper = Model006ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel001ModelHelper(pre_trained_unet_l4_model=unet_model)
 
     # a) model (from python code)
     model = model_helper.get_model()
@@ -104,9 +102,9 @@ if __name__ == "__main__":
 
     # 2. Dataset
     # ----------
-    training_batch_size: int = 4
-    val_batch_size: int = 4
-    test_batch_size: int = 4
+    training_batch_size: int = 2
+    val_batch_size: int = 2
+    test_batch_size: int = 2
 
     # 2.1 Input ---------
     input_sizes = model_helper.model_descriptor.get_input_sizes()
@@ -257,25 +255,25 @@ if __name__ == "__main__":
 
     ref1_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[0],
-        image_transform_function=input_ref1_label_preprocessing_function,
+        image_transform_function=input_ref_label_preprocessing_function,
         # each_transformed_image_save_function_optional=toolz.curry(
         #     save_batch_transformed_img2
         # )(training_result_folder, "training_ref1_result_"),
     )
-    ref2_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref2_label_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref2_result_"),
-    )
-    ref3_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref3_label_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref3_result_"),
-    )
+    # ref2_result_distributor: Distributor = Distributor(
+    #     resize_to=input_sizes[0],
+    #     image_transform_function=input_ref2_label_preprocessing_function,
+    #     # each_transformed_image_save_function_optional=toolz.curry(
+    #     #     save_batch_transformed_img2
+    #     # )(training_result_folder, "training_ref2_result_"),
+    # )
+    # ref3_result_distributor: Distributor = Distributor(
+    #     resize_to=input_sizes[0],
+    #     image_transform_function=input_ref3_label_preprocessing_function,
+    #     # each_transformed_image_save_function_optional=toolz.curry(
+    #     #     save_batch_transformed_img2
+    #     # )(training_result_folder, "training_ref3_result_"),
+    # )
     output_helper_ref_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[0],
         # image_transform_function=lambda im: im,
@@ -290,8 +288,8 @@ if __name__ == "__main__":
         shuffle=True,
         distributors=[
             ref1_result_distributor,
-            ref2_result_distributor,
-            ref3_result_distributor,
+            # ref2_result_distributor,
+            # ref3_result_distributor,
             output_helper_ref_result_distributor,
         ],
     )
@@ -301,8 +299,8 @@ if __name__ == "__main__":
         shuffle=False,
         distributors=[
             ref1_result_distributor,
-            ref2_result_distributor,
-            ref3_result_distributor,
+            # ref2_result_distributor,
+            # ref3_result_distributor,
             output_helper_ref_result_distributor,
         ],
     )
@@ -411,7 +409,7 @@ if __name__ == "__main__":
                 return np.array(batch_out_list)
 
             modified_output = _modify_output(
-                zipped_in_element[5], zipped_out_element[0], batch_size
+                zipped_in_element[3], zipped_out_element[0], batch_size
             )
 
             # for i in range(batch_size):
@@ -424,13 +422,7 @@ if __name__ == "__main__":
             #     )
 
             yield (
-                [
-                    zipped_in_element[0],
-                    zipped_in_element[1],
-                    zipped_in_element[2],
-                    zipped_in_element[3],
-                    zipped_in_element[4],
-                ],
+                [zipped_in_element[0], zipped_in_element[1], zipped_in_element[2]],
                 [modified_output],
             )
 
@@ -449,7 +441,6 @@ if __name__ == "__main__":
     # 3.2 Callbacks ---------
     apply_callbacks_after: int = 0
     early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
-
     val_metric = model.compiled_metrics._metrics[-1].name
     val_checkpoint_metric = "val_" + val_metric
     model_checkpoint: Callback = ModelCheckpointAfter(
@@ -481,7 +472,7 @@ if __name__ == "__main__":
         validation_data=val_generator2,
         validation_steps=val_steps,
         validation_freq=val_freq,
-        max_queue_size=10,
+        max_queue_size=2,
         workers=1,
         use_multiprocessing=False,
         shuffle=True,

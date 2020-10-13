@@ -3,9 +3,9 @@ import time
 
 import common_py
 import cv2
-import keras
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.models import Model
 import toolz
 from image_keras.model_io import load_model
 from image_keras.utils.image_transform import (
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     # model
     model_path: str = os.path.join(save_models_folder, "unet_l4_000.json")
     weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
-    model: keras.models.Model = load_model(model_path, weights_path)
+    model: Model = load_model(model_path, weights_path)
 
     # generator
     batch_size: int = 1

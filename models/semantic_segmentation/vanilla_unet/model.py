@@ -1,19 +1,15 @@
 from typing import Tuple
 
-from keras import losses, optimizers
-from keras.layers import (
+from models.gpu_check import check_first_gpu
+from tensorflow.keras.layers import (
     Conv2D,
     Cropping2D,
-    Dropout,
     Input,
-    Layer,
     MaxPooling2D,
     UpSampling2D,
     concatenate,
 )
-from keras.models import Model
-
-from models.gpu_check import check_first_gpu
+from tensorflow.keras.models import Model
 
 check_first_gpu()
 

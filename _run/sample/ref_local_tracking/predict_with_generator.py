@@ -18,25 +18,22 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from models.color_tracking.model_006 import (
-    Model006ModelHelper,
+from models.ref_local_tracking.ref_local_tracking_model_001 import (
+    RefModel001ModelHelper,
     input_main_image_preprocessing_function,
-    input_ref1_label_preprocessing_function,
-    input_ref2_label_preprocessing_function,
-    input_ref3_label_preprocessing_function,
     input_ref_image_preprocessing_function,
-    output_label_preprocessing_function,
+    input_ref_label_preprocessing_function,
 )
 
 if __name__ == "__main__":
     # 0. Prepare
     # ----------
 
-    # test_id: 사용한 모델, Test 날짜
+    # predict_id: 사용한 모델, Predict 날짜
     # 0.1 ID ---------
-    model_name: str = "model_006"
+    model_name: str = "ref_local_tracking_model_001"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
+    predict_id: str = "_predict__model_{}__run_{}".format(model_name, run_id)
 
     # 0.2 Folder ---------
 
@@ -46,19 +43,29 @@ if __name__ == "__main__":
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
-    test_result_folder: str = os.path.join(base_data_folder, test_id)
-    common_py.create_folder(test_result_folder)
+    predict_result_folder: str = os.path.join(base_data_folder, predict_id)
+    common_py.create_folder(predict_result_folder)
 
     # b) dataset folders
-    test_dataset_folder: str = os.path.join(base_dataset_folder, "ivan_filtered_test")
+    predict_dataset_folder: str = os.path.join(
+        base_dataset_folder, "ivan_filtered_test"
+    )
     # input - main image
-    test_main_image_folder: str = os.path.join(test_dataset_folder, "image", "current")
+    predict_main_image_folder: str = os.path.join(
+        predict_dataset_folder, "image", "current"
+    )
     # input - ref image
-    test_ref_image_folder: str = os.path.join(test_dataset_folder, "image", "prev")
+    predict_ref_image_folder: str = os.path.join(
+        predict_dataset_folder, "image", "prev"
+    )
     # input - ref result label
-    test_ref_result_label_folder: str = os.path.join(test_dataset_folder, "prev_result")
+    predict_ref_result_label_folder: str = os.path.join(
+        predict_dataset_folder, "prev_result"
+    )
     # output - main label
-    test_output_main_label_folder: str = os.path.join(test_dataset_folder, "label")
+    predict_output_main_label_folder: str = os.path.join(
+        predict_dataset_folder, "label"
+    )
 
     # 1. Model
     # --------
@@ -68,7 +75,7 @@ if __name__ == "__main__":
 
     unet_model_helper = UnetL4ModelHelper()
     unet_model = unet_model_helper.get_model()
-    model_helper = Model006ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel001ModelHelper(pre_trained_unet_l4_model=unet_model)
     model = model_helper.get_model()
 
     # b) compile
@@ -78,13 +85,14 @@ if __name__ == "__main__":
     weights_path: str = os.path.join(
         save_weights_folder,
         # "training__model_model_006__run_20200925-091431.epoch_02-val_loss_0.014-val_accuracy_0.952.hdf5",
-        "training__model_model_006__run_20200928-150618.epoch_01-val_loss_0.084-val_acc_0.960.hdf5",
+        # "training__model_model_006__run_20200928-150618.epoch_01-val_loss_0.084-val_acc_0.960.hdf5",
+        "training__model_ref_local_tracking_model_001__run_20201007-092547.epoch_01-val_loss_0.121-val_acc_0.947.hdf5",
     )
     model.load_weights(weights_path)
 
     # 2. Dataset
     # ----------
-    test_batch_size: int = 4
+    predict_batch_size: int = 1
 
     # 2.1 Input ---------
     input_sizes = model_helper.model_descriptor.get_input_sizes()
@@ -121,9 +129,9 @@ if __name__ == "__main__":
         )
         return _image_flow_manager
 
-    test_main_image_flow_manager = __input_main_image_flow(
-        dataset_directory=test_main_image_folder,
-        batch_size=test_batch_size,
+    predict_main_image_flow_manager = __input_main_image_flow(
+        dataset_directory=predict_main_image_folder,
+        batch_size=predict_batch_size,
         preprocessing_function=input_main_image_preprocessing_function,
         # save_folder_and_prefix=(training_result_folder, "training_main_image_"),
         shuffle=False,
@@ -161,9 +169,9 @@ if __name__ == "__main__":
         )
         return _image_flow_manager
 
-    test_ref_image_flow_manager = __input_ref_image_flow(
-        dataset_directory=test_ref_image_folder,
-        batch_size=test_batch_size,
+    predict_ref_image_flow_manager = __input_ref_image_flow(
+        dataset_directory=predict_ref_image_folder,
+        batch_size=predict_batch_size,
         preprocessing_function=input_ref_image_preprocessing_function,
         # save_folder_and_prefix=(training_result_folder, "training_ref_image_"),
         shuffle=False,
@@ -223,80 +231,35 @@ if __name__ == "__main__":
 
     ref1_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[2],
-        image_transform_function=input_ref1_label_preprocessing_function,
+        image_transform_function=input_ref_label_preprocessing_function,
         # each_transformed_image_save_function_optional=toolz.curry(
         #     save_batch_transformed_img2
         # )(training_result_folder, "training_ref1_result_"),
     )
-    ref2_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[3],
-        image_transform_function=input_ref2_label_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref2_result_"),
-    )
-    ref3_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[4],
-        image_transform_function=input_ref3_label_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref3_result_"),
-    )
-    output_helper_ref_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[4]
-    )
+    # ref2_result_distributor: Distributor = Distributor(
+    #     resize_to=input_sizes[3],
+    #     image_transform_function=input_ref2_label_preprocessing_function,
+    #     # each_transformed_image_save_function_optional=toolz.curry(
+    #     #     save_batch_transformed_img2
+    #     # )(training_result_folder, "training_ref2_result_"),
+    # )
+    # ref3_result_distributor: Distributor = Distributor(
+    #     resize_to=input_sizes[4],
+    #     image_transform_function=input_ref3_label_preprocessing_function,
+    #     # each_transformed_image_save_function_optional=toolz.curry(
+    #     #     save_batch_transformed_img2
+    #     # )(training_result_folder, "training_ref3_result_"),
+    # )
 
-    test_ref_result_flow_manager = __input_result_label_flow(
-        dataset_directory=test_ref_result_label_folder,
-        batch_size=test_batch_size,
+    predict_ref_result_flow_manager = __input_result_label_flow(
+        dataset_directory=predict_ref_result_label_folder,
+        batch_size=predict_batch_size,
         shuffle=False,
         distributors=[
             ref1_result_distributor,
-            ref2_result_distributor,
-            ref3_result_distributor,
-            output_helper_ref_result_distributor,
+            # ref2_result_distributor,
+            # ref3_result_distributor,
         ],
-    )
-
-    # 2.2 Output ---------
-    output_sizes = model_helper.model_descriptor.get_output_sizes()
-
-    # a) label
-    def __output_label_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
-        seed: int = 42,
-    ) -> DistFlowManager:
-        _each_transformed_label_save_function_optional = None
-        if save_folder_and_prefix is not None:
-            _each_transformed_label_save_function_optional = toolz.curry(
-                save_batch_transformed_img
-            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
-        _label_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="rgb",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _distributor: Distributor = Distributor(
-            resize_to=output_sizes[0],
-            image_transform_function=preprocessing_function,
-            each_transformed_image_save_function_optional=_each_transformed_label_save_function_optional,
-            # transform_function_for_all=img_to_ratio,
-        )
-        _image_flow_manager: DistFlowManager = DistFlowManager(
-            flow_from_directory=_label_flow, distributors=[_distributor],
-        )
-        return _image_flow_manager
-
-    test_output_main_label_flow_manager = __output_label_flow(
-        dataset_directory=test_output_main_label_folder,
-        batch_size=test_batch_size,
-        shuffle=False,
     )
 
     # 2.3 Inout ---------
@@ -311,88 +274,37 @@ if __name__ == "__main__":
 
         _generator = _in_out_generator.get_generator()
         _samples = _in_out_generator.get_samples()
+        _filenames = _in_out_generator.get_filenames()
         _nb_samples = math.ceil(_samples / batch_size)
 
-        return _generator, _samples, _nb_samples
+        return _generator, _samples, _filenames, _nb_samples
 
-    (test_generator, test_samples, test_nb_samples,) = __inout_dist_generator_infos(
+    (
+        predict_generator,
+        predict_samples,
+        predict_filenames,
+        predict_nb_samples,
+    ) = __inout_dist_generator_infos(
         input_flows=[
-            test_main_image_flow_manager,
-            test_ref_image_flow_manager,
-            test_ref_result_flow_manager,
+            predict_main_image_flow_manager,
+            predict_ref_image_flow_manager,
+            predict_ref_result_flow_manager,
         ],
-        output_flows=[test_output_main_label_flow_manager],
-        batch_size=test_batch_size,
+        output_flows=[],
+        batch_size=predict_batch_size,
     )
 
-    # 2.4 Custom Generator Transform ---------
-    def _zipped_transform(zipped_inout):
-        for idx, zipped_inout_element in enumerate(zipped_inout):
-            zipped_in_element = zipped_inout_element[0]
-            batch_size = zipped_in_element[0].shape[0]
-            zipped_out_element = zipped_inout_element[1]
-
-            def _modify_output(_in, _out, _batch_size):
-                batch_out_list = []
-                for i in range(_batch_size):
-                    current_batch_in_list = _in[i]
-                    current_batch_out_list = _out[i]
-                    modified_out_list = output_label_preprocessing_function(
-                        current_batch_out_list, current_batch_in_list
-                    )
-                    batch_out_list.append(modified_out_list)
-                return np.array(batch_out_list)
-
-            modified_output = _modify_output(
-                zipped_in_element[5], zipped_out_element[0], batch_size
-            )
-
-            # for i in range(batch_size):
-            #     save_batch_transformed_img2(
-            #         training_result_folder,
-            #         "training_output_main_label_",
-            #         idx,
-            #         i,
-            #         modified_output[i],
-            #     )
-
-            yield (
-                [
-                    zipped_in_element[0],
-                    zipped_in_element[1],
-                    zipped_in_element[2],
-                    zipped_in_element[3],
-                    zipped_in_element[4],
-                ],
-                [modified_output],
-            )
-
-    test_generator2 = _zipped_transform(test_generator)
-
-    # 3. Test
+    # 3. Predict
     # -----------
     # 3.1 Parameters ---------
-    test_steps = test_samples // test_batch_size
+    predict_steps = predict_nb_samples // predict_batch_size
+    results = model.predict_generator(predict_generator, steps=predict_steps, verbose=1)
 
-    test_loss, test_acc = model.evaluate_generator(
-        test_generator2, steps=test_steps, verbose=1, max_queue_size=1
-    )
-
-    metric_names = list(map(lambda el: el.name, model.compiled_metrics._metrics))
-
-    print(
-        "loss : {}".format(
-            dict(
-                map(lambda kv: (kv[0], kv[1].name), model.compiled_loss._losses.items())
-            )
-        )
-    )
-    print("loss weights : {}".format(model.loss_weights))
-    print(
-        "metrics : {}".format(
-            list(map(lambda el: el.name, model.compiled_metrics._metrics))
-        )
-    )
-
-    print("test_loss: {}".format(test_loss))
-    print("test_acc: {}".format(test_acc))
+    # 4. Post Processing
+    # ------------------
+    # for index, result in enumerate(results):
+    #     name: str = os.path.basename(predict_filenames[index])
+    #     print("Post Processing for {}".format(name))
+    #     full_path: str = os.path.join(predict_result_folder, name)
+    #     result = ratio_to_img(result)
+    #     cv2.imwrite(full_path, result)
