@@ -47,6 +47,7 @@ python _run/experiment_name.py
         -u $(id -u):$(id -g) \
         -v /etc/localtime:/etc/localtime:ro \
         -v $(pwd):/tracking_net \
+        -p 6006:6006 \
         --workdir="/tracking_net" \
         [image id]
     ```
@@ -61,8 +62,9 @@ python _run/experiment_name.py
         -u $(id -u):$(id -g) \
         -v /etc/localtime:/etc/localtime:ro \
         -v $(pwd):/tracking_net \
+        -p 6006:6006 \
         --workdir="/tracking_net" \
-        [image id] \
+        d59e4204feec \
         python _run/sample/color_tracking/training_with_generator.py
     ```
 
@@ -85,3 +87,25 @@ python _run/experiment_name.py
     ```shell
     docker attach 4c25ce8443e6
     ```
+
+### (Optional) Tensorboard
+
+* Run tensorboard on docker container
+
+    ```shell
+    docker exec [container id] tensorboard --logdir ./save/tf_logs/ --host 0.0.0.0 &
+    ```
+
+    Real example
+
+    ```shell
+    docker exec 7f1840636c9d tensorboard --logdir ./save/tf_logs/ --host 0.0.0.0 &
+    ```
+
+* Using ssh -L
+
+    ```shell
+    ssh -L 127.0.0.1:16006:0.0.0.0:6006 username@server
+    ```
+
+  * As mac client, I use "SSH Tunnel Manager" app to connect server.

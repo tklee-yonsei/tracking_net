@@ -23,8 +23,8 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from models.ref_local_tracking.ref_local_tracking_model_003 import (
-    RefModel003ModelHelper,
+from models.ref_local_tracking.ref_local_tracking_model_004 import (
+    RefModel004ModelHelper,
     input_main_image_preprocessing_function,
     input_ref_image_preprocessing_function,
     input_ref_label_1_preprocessing_function,
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
-    model_name: str = "ref_local_tracking_model_003"
+    model_name: str = "ref_local_tracking_model_004"
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
     training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     unet_model = unet_model_helper.get_model()
     unet_model_weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
     unet_model.load_weights(unet_model_weights_path)
-    model_helper = RefModel003ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel004ModelHelper(pre_trained_unet_l4_model=unet_model)
 
     # a) model (from python code)
     model = model_helper.get_model()
@@ -107,9 +107,9 @@ if __name__ == "__main__":
 
     # 2. Dataset
     # ----------
-    training_batch_size: int = 4
-    val_batch_size: int = 4
-    test_batch_size: int = 4
+    training_batch_size: int = 2
+    val_batch_size: int = 2
+    test_batch_size: int = 2
 
     # 2.1 Input ---------
     input_sizes = model_helper.model_descriptor.get_input_sizes()
@@ -481,7 +481,7 @@ if __name__ == "__main__":
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
-    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir)
+    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir, write_images=True)
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
