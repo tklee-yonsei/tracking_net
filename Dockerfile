@@ -23,4 +23,4 @@ RUN apt-get install 'ffmpeg'\
     'libsm6'\ 
     'libxext6' -y
 RUN pip install common-py opencv-python
-RUN pip install image-keras==0.2.2
+RUN pip install image-keras==0.2.4
