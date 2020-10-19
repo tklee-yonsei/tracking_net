@@ -19,7 +19,7 @@ unet_l4_002_model_descriptor_default: ModelDescriptor = ModelDescriptor(
 
 
 unet_l4_002_loss_descriptors_default: List[LossDescriptor] = [
-    LossDescriptor(loss=BinaryBoundaryCrossentropy(), weight=1.0)
+    LossDescriptor(loss=BinaryBoundaryCrossentropy(range=1, max=2.0), weight=1.0)
 ]
 
 input_image_preprocessing_function: Callable[
