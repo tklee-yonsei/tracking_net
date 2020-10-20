@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # c) load weights
     weights_path: str = os.path.join(
         save_weights_folder,
-        "training__model_unet_l4_003__run_20201019-191613.epoch_06-val_loss_0.087-val_mean_iou_0.926.hdf5",
+        "training__model_unet_l4_003__run_20201019-191613.epoch_26-val_loss_0.129-val_mean_iou_0.929.hdf5",
     )
     model.load_weights(weights_path)
 
