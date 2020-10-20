@@ -4,6 +4,9 @@ from typing import Callable, Generator, List, Optional, Tuple
 import cv2
 import numpy as np
 import toolz
+from image_keras.custom.losses_binary_boundary_crossentropy import (
+    BinaryBoundaryCrossentropy,
+)
 from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from image_keras.utils.image_transform import (
@@ -13,18 +16,19 @@ from image_keras.utils.image_transform import (
     img_to_minmax,
     img_to_ratio,
 )
-from models.semantic_segmentation.unet_l4.model import unet_l4
+from models.semantic_segmentation.unet_l4_002.model import unet_l4
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.metrics import BinaryAccuracy, Metric
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, Optimizer
 
-unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
+unet_l4_003_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
 )
 
-unet_l4_loss_descriptors_default: List[LossDescriptor] = [
-    LossDescriptor(loss=BinaryCrossentropy(), weight=1.0)
+
+unet_l4_003_loss_descriptors_default: List[LossDescriptor] = [
+    LossDescriptor(loss=BinaryBoundaryCrossentropy(range=3, max=3.0), weight=1.0)
 ]
 
 input_image_preprocessing_function: Callable[
@@ -36,10 +40,10 @@ output_label_preprocessing_function: Callable[
 ] = lambda _img: img_to_minmax(_img, 127, (0, 255))
 
 
-class UnetL4ModelHelper(ModelHelper):
+class UnetL4_003ModelHelper(ModelHelper):
     def __init__(
         self,
-        model_descriptor: ModelDescriptor = unet_l4_model_descriptor_default,
+        model_descriptor: ModelDescriptor = unet_l4_003_model_descriptor_default,
         alpha: float = 1.0,
     ):
         super().__init__(model_descriptor, alpha)
@@ -56,7 +60,7 @@ class UnetL4ModelHelper(ModelHelper):
         self,
         model: Model,
         optimizer: Optimizer = Adam(lr=1e-4),
-        loss_list: List[LossDescriptor] = unet_l4_loss_descriptors_default,
+        loss_list: List[LossDescriptor] = unet_l4_003_loss_descriptors_default,
         metrics: List[Metric] = [
             BinaryAccuracy(name="accuracy"),
             BinaryClassMeanIoU(name="mean_iou"),
@@ -89,7 +93,7 @@ def processing_for_grayscale_img(img: np.ndarray):
 def single_input_main_image_preprocessing(
     img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
 ) -> np.ndarray:
-    resize_to = unet_l4_model_descriptor_default.get_input_sizes()[0]
+    resize_to = unet_l4_003_model_descriptor_default.get_input_sizes()[0]
     resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
     img = toolz.compose_left(
         lambda _img: img_resize(_img, resize_to, resize_interpolation),

@@ -1,12 +1,21 @@
-from typing import Callable, List
+import os
+from typing import Callable, Generator, List, Optional, Tuple
 
+import cv2
 import numpy as np
+import toolz
 from image_keras.custom.losses_binary_boundary_crossentropy import (
     BinaryBoundaryCrossentropy,
 )
 from image_keras.custom.metrics import BinaryClassMeanIoU
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
-from image_keras.utils.image_transform import gray_image_apply_clahe, img_to_minmax
+from image_keras.utils.image_transform import (
+    InterpolationEnum,
+    gray_image_apply_clahe,
+    img_resize,
+    img_to_minmax,
+    img_to_ratio,
+)
 from models.semantic_segmentation.unet_l4_002.model import unet_l4
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.metrics import BinaryAccuracy, Metric
@@ -72,3 +81,33 @@ class UnetL4_002ModelHelper(ModelHelper):
             target_tensors=target_tensors,
             **kwargs
         )
+
+
+# single processing
+def processing_for_grayscale_img(img: np.ndarray):
+    if len(img.shape) == 2:
+        img = np.reshape(img, (img.shape[0], img.shape[1], 1),)
+    return img
+
+
+def single_input_main_image_preprocessing(
+    img: np.ndarray, full_path_optional: Optional[Tuple[str, str]] = None
+) -> np.ndarray:
+    resize_to = unet_l4_002_model_descriptor_default.get_input_sizes()[0]
+    resize_interpolation: InterpolationEnum = InterpolationEnum.inter_nearest
+    img = toolz.compose_left(
+        lambda _img: img_resize(_img, resize_to, resize_interpolation),
+        input_image_preprocessing_function,
+        processing_for_grayscale_img,
+    )(img)
+    if full_path_optional:
+        cv2.imwrite(os.path.join(full_path_optional[0], full_path_optional[1]), img)
+    img = img_to_ratio(img)
+    return img
+
+
+def single_generator(main_img: np.ndarray) -> Generator:
+    for index in range(1):
+        main_img = np.reshape(main_img, (1,) + main_img.shape)
+        yield [main_img]
+
