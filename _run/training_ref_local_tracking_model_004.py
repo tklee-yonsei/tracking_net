@@ -23,27 +23,47 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from models.ref_local_tracking.ref_local_tracking_model_003 import (
-    RefModel003ModelHelper,
-    input_main_image_preprocessing_function,
-    input_ref_image_preprocessing_function,
-    input_ref_label_1_preprocessing_function,
-    input_ref_label_2_preprocessing_function,
-    input_ref_label_3_preprocessing_function,
-    input_ref_label_4_preprocessing_function,
-    output_label_preprocessing_function,
-)
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
 
 if __name__ == "__main__":
+    # Variables
+    from models.ref_local_tracking.ref_local_tracking_model_004 import (
+        RefModel004ModelHelper,
+        input_main_image_preprocessing_function,
+        input_ref_image_preprocessing_function,
+        input_ref_label_1_preprocessing_function,
+        input_ref_label_2_preprocessing_function,
+        input_ref_label_3_preprocessing_function,
+        input_ref_label_4_preprocessing_function,
+        output_label_preprocessing_function,
+    )
+
+    variable_training_dataset_folder = "ivan_filtered_training"
+    variable_validation_dataset_folder = "ivan_filtered_validation"
+    variable_model_name = "ref_local_tracking_model_004"
+    variable_config_id = "001"
+
+    from models.semantic_segmentation.unet_l4.config_001 import UnetL4ModelHelper
+
+    variable_unet_weights_file_name = "unet010.hdf5"
+
     # 0. Prepare
     # ----------
 
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
-    model_name: str = "ref_local_tracking_model_003"
+    model_name: str = variable_model_name
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
+    config_id = variable_config_id
+    training_id: str = "_training__model_{}__config_{}__run_{}".format(
+        model_name, config_id, run_id
+    )
+    print("# Information ---------------------------")
+    print("Training ID: {}".format(training_id))
+    print("Training Dataset: {}".format(variable_training_dataset_folder))
+    print("Validation Dataset: {}".format(variable_validation_dataset_folder))
+    print("Config ID: {}".format(variable_config_id))
+    print("-----------------------------------------")
 
     # 0.2 Folder ---------
     # a) model, weights, result
@@ -62,10 +82,10 @@ if __name__ == "__main__":
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
-        base_dataset_folder, "ivan_filtered_training"
+        base_dataset_folder, variable_training_dataset_folder
     )
     val_dataset_folder: str = os.path.join(
-        base_dataset_folder, "ivan_filtered_validation"
+        base_dataset_folder, variable_validation_dataset_folder
     )
     # input - main image
     training_main_image_folder: str = os.path.join(
@@ -91,13 +111,13 @@ if __name__ == "__main__":
     # 1. Model
     # --------
     # model -> compile
-    from models.semantic_segmentation.unet_l4.config import UnetL4ModelHelper
-
     unet_model_helper = UnetL4ModelHelper()
     unet_model = unet_model_helper.get_model()
-    unet_model_weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
+    unet_model_weights_path: str = os.path.join(
+        save_weights_folder, variable_unet_weights_file_name
+    )
     unet_model.load_weights(unet_model_weights_path)
-    model_helper = RefModel003ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel004ModelHelper(pre_trained_unet_l4_model=unet_model)
 
     # a) model (from python code)
     model = model_helper.get_model()
@@ -107,9 +127,9 @@ if __name__ == "__main__":
 
     # 2. Dataset
     # ----------
-    training_batch_size: int = 4
-    val_batch_size: int = 4
-    test_batch_size: int = 4
+    training_batch_size: int = 2
+    val_batch_size: int = 2
+    test_batch_size: int = 2
 
     # 2.1 Input ---------
     input_sizes = model_helper.model_descriptor.get_input_sizes()
@@ -481,7 +501,7 @@ if __name__ == "__main__":
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
-    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir)
+    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir, write_images=True)
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------

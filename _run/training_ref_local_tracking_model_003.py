@@ -23,47 +23,68 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from models.ref_local_tracking.ref_local_tracking_model_002 import (
-    RefModel002ModelHelper,
-    input_main_image_preprocessing_function,
-    input_ref_image_preprocessing_function,
-    input_ref_label_1_preprocessing_function,
-    input_ref_label_2_preprocessing_function,
-    input_ref_label_3_preprocessing_function,
-    input_ref_label_4_preprocessing_function,
-    output_label_preprocessing_function,
-)
-from tensorflow.keras.callbacks import Callback, History
+from tensorflow.keras.callbacks import Callback, History, TensorBoard
 
 if __name__ == "__main__":
+    # Variables
+    from models.ref_local_tracking.ref_local_tracking_model_003 import (
+        RefModel003ModelHelper,
+        input_main_image_preprocessing_function,
+        input_ref_image_preprocessing_function,
+        input_ref_label_1_preprocessing_function,
+        input_ref_label_2_preprocessing_function,
+        input_ref_label_3_preprocessing_function,
+        input_ref_label_4_preprocessing_function,
+        output_label_preprocessing_function,
+    )
+
+    variable_training_dataset_folder = "ivan_filtered_training"
+    variable_validation_dataset_folder = "ivan_filtered_validation"
+    variable_model_name = "ref_local_tracking_model_003"
+    variable_config_id = "001"
+
+    from models.semantic_segmentation.unet_l4.config_001 import UnetL4ModelHelper
+
+    variable_unet_weights_file_name = "unet010.hdf5"
     # 0. Prepare
     # ----------
 
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
-    model_name: str = "ref_local_tracking_model_002"
+    model_name: str = variable_model_name
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
+    config_id = variable_config_id
+    training_id: str = "_training__model_{}__config_{}__run_{}".format(
+        model_name, config_id, run_id
+    )
+    print("# Information ---------------------------")
+    print("Training ID: {}".format(training_id))
+    print("Training Dataset: {}".format(variable_training_dataset_folder))
+    print("Validation Dataset: {}".format(variable_validation_dataset_folder))
+    print("Config ID: {}".format(variable_config_id))
+    print("-----------------------------------------")
 
     # 0.2 Folder ---------
-
     # a) model, weights, result
     base_dataset_folder: str = os.path.join("dataset")
     base_data_folder: str = os.path.join("data")
     base_save_folder: str = os.path.join("save")
     save_models_folder: str = os.path.join(base_save_folder, "models")
     save_weights_folder: str = os.path.join(base_save_folder, "weights")
+    tf_log_folder: str = os.path.join(base_save_folder, "tf_logs")
     common_py.create_folder(save_models_folder)
     common_py.create_folder(save_weights_folder)
+    common_py.create_folder(tf_log_folder)
+    run_log_dir: str = os.path.join(tf_log_folder, run_id)
     training_result_folder: str = os.path.join(base_data_folder, training_id)
     common_py.create_folder(training_result_folder)
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
-        base_dataset_folder, "ivan_filtered_training"
+        base_dataset_folder, variable_training_dataset_folder
     )
     val_dataset_folder: str = os.path.join(
-        base_dataset_folder, "ivan_filtered_validation"
+        base_dataset_folder, variable_validation_dataset_folder
     )
     # input - main image
     training_main_image_folder: str = os.path.join(
@@ -89,13 +110,13 @@ if __name__ == "__main__":
     # 1. Model
     # --------
     # model -> compile
-    from models.semantic_segmentation.unet_l4.config import UnetL4ModelHelper
-
     unet_model_helper = UnetL4ModelHelper()
     unet_model = unet_model_helper.get_model()
-    unet_model_weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
+    unet_model_weights_path: str = os.path.join(
+        save_weights_folder, variable_unet_weights_file_name
+    )
     unet_model.load_weights(unet_model_weights_path)
-    model_helper = RefModel002ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel003ModelHelper(pre_trained_unet_l4_model=unet_model)
 
     # a) model (from python code)
     model = model_helper.get_model()
@@ -479,7 +500,8 @@ if __name__ == "__main__":
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
-    callback_list: List[Callback] = [model_checkpoint, early_stopping]
+    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir)
+    callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
     history: History = model.fit_generator(
