@@ -8,21 +8,32 @@ import time
 import common_py
 import cv2
 from image_keras.utils.image_transform import ratio_to_img
-from models.semantic_segmentation.unet_l4.config import (
-    UnetL4ModelHelper,
-    single_generator,
-    single_input_main_image_preprocessing,
-)
 
 if __name__ == "__main__":
+    # Variables
+    from models.semantic_segmentation.unet_l4.config_004 import (
+        UnetL4ModelHelper,
+        single_generator,
+        single_input_main_image_preprocessing,
+    )
+
+    variable_predict_dataset_folder = "test_original_20_edge10"
+    variable_model_name = "unet_l4"
+    variable_config_id = "004"
+    variable_model_helper = UnetL4ModelHelper()
+    variable_weights_file_name = "training__model_unet_l4__run_20201020-124417.epoch_06-val_loss_0.064-val_mean_iou_0.939.hdf5"
+
     # 0. Prepare
     # ----------
 
     # predict_id: 사용한 모델, Predict 날짜
     # 0.1 ID ---------
-    model_name: str = "unet_l4"
+    model_name: str = variable_model_name
+    config_id = variable_config_id
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    predict_id: str = "_predict__model_{}__run_{}".format(model_name, run_id)
+    predict_id: str = "_predict__model_{}__config_{}__run_{}".format(
+        model_name, config_id, run_id
+    )
 
     # 0.2 Folder ---------
 
@@ -37,7 +48,7 @@ if __name__ == "__main__":
 
     # b) dataset folders
     predict_dataset_folder: str = os.path.join(
-        base_dataset_folder, "test_original_20_edge10"
+        base_dataset_folder, variable_predict_dataset_folder
     )
     # input - image
     predict_image_folder: str = os.path.join(predict_dataset_folder, "image")
@@ -54,7 +65,7 @@ if __name__ == "__main__":
 
     # c) load weights
     weights_path: str = os.path.join(
-        save_weights_folder, "unet010.hdf5",
+        save_weights_folder, variable_weights_file_name,
     )
     model.load_weights(weights_path)
 

@@ -21,27 +21,35 @@ from image_keras.inout_generator import (
     FlowManager,
     save_batch_transformed_img,
 )
-from image_keras.model_io import load_model
 from image_keras.utils.image_transform import img_to_ratio
-from models.semantic_segmentation.unet_l4_003 import (
-    UnetL4_003ModelHelper,
-    input_image_preprocessing_function,
-    output_label_preprocessing_function,
-)
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
 
 if __name__ == "__main__":
+    # Variables
+    from models.semantic_segmentation.unet_l4.config_004 import (
+        UnetL4ModelHelper,
+        input_image_preprocessing_function,
+        output_label_preprocessing_function,
+    )
+
+    variable_training_dataset_folder = "training_original_20_edge10"
+    variable_validation_dataset_folder = "validation_original_20_edge10"
+    variable_model_name = "unet_l4"
+    variable_config_id = "004"
+    variable_model_helper = UnetL4ModelHelper()
+
     # 0. Prepare
     # ----------
-
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
-    model_name: str = "unet_l4_003"
+    model_name: str = variable_model_name
+    config_id: str = variable_config_id
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
+    training_id: str = "_training__model_{}__config_{}__run_{}".format(
+        model_name, config_id, run_id
+    )
 
     # 0.2 Folder ---------
-
     # a) model, weights, result
     base_dataset_folder: str = os.path.join("dataset")
     base_data_folder: str = os.path.join("data")
@@ -58,10 +66,10 @@ if __name__ == "__main__":
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
-        base_dataset_folder, "training_original_20_edge10"
+        base_dataset_folder, variable_training_dataset_folder
     )
     val_dataset_folder: str = os.path.join(
-        base_dataset_folder, "validation_original_20_edge10"
+        base_dataset_folder, variable_validation_dataset_folder
     )
     # input - image
     training_image_folder: str = os.path.join(training_dataset_folder, "image")
@@ -73,14 +81,10 @@ if __name__ == "__main__":
     # 1. Model
     # --------
     # model -> compile
-    model_helper = UnetL4_003ModelHelper()
+    model_helper = variable_model_helper
 
     # a) model (from python code)
     model = model_helper.get_model()
-
-    # a) model (from json)
-    # model_path: str = os.path.join(save_models_folder, "unet_l4_001.json")
-    # model = load_model(model_path)
 
     # b) compile
     model = model_helper.compile_model(model)
