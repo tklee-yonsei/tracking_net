@@ -16,7 +16,10 @@ check_first_gpu()
 
 
 def unet_l4(
-    input_name: str, input_shape: Tuple[int, int, int], output_name: str, alpha=1.0
+    input_name: str,
+    output_name: str,
+    input_shape: Tuple[int, int, int] = (256, 256, 1),
+    alpha=1.0,
 ):
     filters: int = 16
     inputs = Input(shape=input_shape, name=input_name)

@@ -48,6 +48,12 @@ if __name__ == "__main__":
     training_id: str = "_training__model_{}__config_{}__run_{}".format(
         model_name, config_id, run_id
     )
+    print("# Information ---------------------------")
+    print("Training ID: {}".format(training_id))
+    print("Training Dataset: {}".format(variable_training_dataset_folder))
+    print("Validation Dataset: {}".format(variable_validation_dataset_folder))
+    print("Config ID: {}".format(variable_config_id))
+    print("-----------------------------------------")
 
     # 0.2 Folder ---------
     # a) model, weights, result
