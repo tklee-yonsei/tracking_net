@@ -43,6 +43,11 @@ if __name__ == "__main__":
     test_id: str = "_test__model_{}__config_{}__run_{}".format(
         model_name, config_id, run_id
     )
+    print("# Information ---------------------------")
+    print("Test ID: {}".format(test_id))
+    print("Test Dataset: {}".format(variable_test_dataset_folder))
+    print("Config ID: {}".format(variable_config_id))
+    print("-----------------------------------------")
 
     # 0.2 Folder ---------
 

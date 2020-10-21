@@ -34,6 +34,11 @@ if __name__ == "__main__":
     predict_id: str = "_predict__model_{}__config_{}__run_{}".format(
         model_name, config_id, run_id
     )
+    print("# Information ---------------------------")
+    print("Predict ID: {}".format(predict_id))
+    print("Predict Dataset: {}".format(variable_predict_dataset_folder))
+    print("Config ID: {}".format(variable_config_id))
+    print("-----------------------------------------")
 
     # 0.2 Folder ---------
 
