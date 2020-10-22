@@ -15,7 +15,10 @@ check_first_gpu()
 
 
 def vanilla_unet(
-    input_name: str, input_shape: Tuple[int, int, int], output_name: str, alpha=1.0
+    input_name: str,
+    output_name: str,
+    input_shape: Tuple[int, int, int] = (572, 572, 1),
+    alpha=1.0,
 ) -> Model:
     inputs = Input(shape=input_shape, name=input_name)
 

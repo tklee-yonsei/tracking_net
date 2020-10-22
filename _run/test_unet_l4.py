@@ -17,21 +17,37 @@ from image_keras.inout_generator import (
     save_batch_transformed_img,
 )
 from image_keras.utils.image_transform import img_to_ratio
-from models.semantic_segmentation.unet_l4.config import (
-    UnetL4ModelHelper,
-    input_image_preprocessing_function,
-    output_label_preprocessing_function,
-)
 
 if __name__ == "__main__":
+    # Variables
+    from models.semantic_segmentation.unet_l4.config_004 import (
+        UnetL4ModelHelper,
+        input_image_preprocessing_function,
+        output_label_preprocessing_function,
+    )
+
+    variable_test_dataset_folder = "test_original_20_edge10"
+    variable_model_name = "unet_l4"
+    variable_config_id = "004"
+    variable_model_helper = UnetL4ModelHelper()
+    variable_weights_file_name = "unet010.hdf5"
+
     # 0. Prepare
     # ----------
 
     # test_id: 사용한 모델, Test 날짜
     # 0.1 ID ---------
-    model_name: str = "unet_l4"
+    model_name: str = variable_model_name
+    config_id = variable_config_id
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
-    test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
+    test_id: str = "_test__model_{}__config_{}__run_{}".format(
+        model_name, config_id, run_id
+    )
+    print("# Information ---------------------------")
+    print("Test ID: {}".format(test_id))
+    print("Test Dataset: {}".format(variable_test_dataset_folder))
+    print("Config ID: {}".format(variable_config_id))
+    print("-----------------------------------------")
 
     # 0.2 Folder ---------
 
@@ -46,7 +62,7 @@ if __name__ == "__main__":
 
     # b) dataset folders
     test_dataset_folder: str = os.path.join(
-        base_dataset_folder, "test_original_20_edge10"
+        base_dataset_folder, variable_test_dataset_folder
     )
     # input - image
     test_image_folder: str = os.path.join(test_dataset_folder, "image")
@@ -58,7 +74,7 @@ if __name__ == "__main__":
     model_helper = UnetL4ModelHelper()
     model = model_helper.get_model()
     model = model_helper.compile_model(model)
-    weights_path: str = os.path.join(save_weights_folder, "unet010.hdf5")
+    weights_path: str = os.path.join(save_weights_folder, variable_weights_file_name)
     model.load_weights(weights_path)
 
     # 2. Dataset
