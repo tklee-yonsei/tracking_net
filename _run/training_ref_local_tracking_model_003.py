@@ -43,9 +43,9 @@ if __name__ == "__main__":
     variable_model_name = "ref_local_tracking_model_003"
     variable_config_id = "001"
 
-    from models.semantic_segmentation.unet_l4.config_001 import UnetL4ModelHelper
+    from models.semantic_segmentation.unet_l4.config_005 import UnetL4ModelHelper
 
-    variable_unet_weights_file_name = "unet010.hdf5"
+    variable_unet_weights_file_name = "training__model_unet_l4__config_005__run_20201021-141844.epoch_25-val_loss_0.150-val_mean_iou_0.931.hdf5"
     # 0. Prepare
     # ----------
 
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     common_py.create_folder(save_models_folder)
     common_py.create_folder(save_weights_folder)
     common_py.create_folder(tf_log_folder)
-    run_log_dir: str = os.path.join(tf_log_folder, run_id)
+    run_log_dir: str = os.path.join(tf_log_folder, training_id)
     training_result_folder: str = os.path.join(base_data_folder, training_id)
     common_py.create_folder(training_result_folder)
 

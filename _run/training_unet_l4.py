@@ -26,7 +26,7 @@ from tensorflow.keras.callbacks import Callback, History, TensorBoard
 
 if __name__ == "__main__":
     # Variables
-    from models.semantic_segmentation.unet_l4.config_004 import (
+    from models.semantic_segmentation.unet_l4.config_006 import (
         UnetL4ModelHelper,
         input_image_preprocessing_function,
         output_label_preprocessing_function,
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     variable_training_dataset_folder = "training_original_20_edge10"
     variable_validation_dataset_folder = "validation_original_20_edge10"
     variable_model_name = "unet_l4"
-    variable_config_id = "004"
+    variable_config_id = "006"
     variable_model_helper = UnetL4ModelHelper()
 
     # 0. Prepare
