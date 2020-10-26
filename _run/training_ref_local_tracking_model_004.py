@@ -76,7 +76,7 @@ if __name__ == "__main__":
     common_py.create_folder(save_models_folder)
     common_py.create_folder(save_weights_folder)
     common_py.create_folder(tf_log_folder)
-    run_log_dir: str = os.path.join(tf_log_folder, run_id)
+    run_log_dir: str = os.path.join(tf_log_folder, training_id)
     training_result_folder: str = os.path.join(base_data_folder, training_id)
     common_py.create_folder(training_result_folder)
 
