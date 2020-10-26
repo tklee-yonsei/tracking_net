@@ -33,6 +33,18 @@ python _run/experiment_name.py
     docker build .
     ```
 
+* Docker image
+
+    ```shell
+    docker images
+
+    <none>                  <none>                            53bf6b5d0f6a        44 hours ago        5.2GB
+    nvidia/cuda             11.0-cudnn8-runtime-ubuntu18.04   848be2582b0a        12 days ago         3.6GB
+    nvidia/cuda             10.2-base                         038eb67e1704        2 weeks ago         107MB
+    nvidia/cuda             latest                            752312fac010        3 weeks ago         4.69GB
+    nvidia/cuda             10.0-base                         0f12aac8787e        3 weeks ago         109MB
+    ```
+
 ### Run docker image as container
 
 * Run docker image as bash
