@@ -27,12 +27,10 @@ from tensorflow.keras.callbacks import Callback, History, TensorBoard
 
 if __name__ == "__main__":
     # Variables
-    from models.ref_local_tracking.ref_local_tracking_model_004 import (
-        RefModel004ModelHelper,
+    from models.ref_local_tracking.ref_local_tracking_model_007 import (
+        RefModel007ModelHelper,
         input_main_image_preprocessing_function,
         input_ref_image_preprocessing_function,
-        input_ref_label_1_preprocessing_function,
-        input_ref_label_2_preprocessing_function,
         input_ref_label_3_preprocessing_function,
         input_ref_label_4_preprocessing_function,
         output_label_preprocessing_function,
@@ -40,7 +38,7 @@ if __name__ == "__main__":
 
     variable_training_dataset_folder = "ivan_filtered_training"
     variable_validation_dataset_folder = "ivan_filtered_validation"
-    variable_model_name = "ref_local_tracking_model_004"
+    variable_model_name = "ref_local_tracking_model_007"
     variable_config_id = "001"
 
     from models.semantic_segmentation.unet_l4.config_001 import UnetL4ModelHelper
@@ -117,7 +115,7 @@ if __name__ == "__main__":
         save_weights_folder, variable_unet_weights_file_name
     )
     unet_model.load_weights(unet_model_weights_path)
-    model_helper = RefModel004ModelHelper(pre_trained_unet_l4_model=unet_model)
+    model_helper = RefModel007ModelHelper(pre_trained_unet_l4_model=unet_model)
 
     # a) model (from python code)
     model = model_helper.get_model()
@@ -278,20 +276,6 @@ if __name__ == "__main__":
             img_fullpath = os.path.join(target_folder, img_name)
             cv2.imwrite(img_fullpath, image[:, :, i] * 255)
 
-    ref1_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref_label_1_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref1_result_"),
-    )
-    ref2_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref_label_2_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref2_result_"),
-    )
     ref3_result_distributor: Distributor = Distributor(
         resize_to=input_sizes[0],
         image_transform_function=input_ref_label_3_preprocessing_function,
@@ -319,8 +303,6 @@ if __name__ == "__main__":
         batch_size=training_batch_size,
         shuffle=True,
         distributors=[
-            ref1_result_distributor,
-            ref2_result_distributor,
             ref3_result_distributor,
             ref4_result_distributor,
             output_helper_ref_result_distributor,
@@ -331,8 +313,6 @@ if __name__ == "__main__":
         batch_size=val_batch_size,
         shuffle=False,
         distributors=[
-            ref1_result_distributor,
-            ref2_result_distributor,
             ref3_result_distributor,
             ref4_result_distributor,
             output_helper_ref_result_distributor,
@@ -443,7 +423,7 @@ if __name__ == "__main__":
                 return np.array(batch_out_list)
 
             modified_output = _modify_output(
-                zipped_in_element[6], zipped_out_element[0], batch_size
+                zipped_in_element[4], zipped_out_element[0], batch_size
             )
 
             # for i in range(batch_size):
@@ -461,8 +441,6 @@ if __name__ == "__main__":
                     zipped_in_element[1],
                     zipped_in_element[2],
                     zipped_in_element[3],
-                    zipped_in_element[4],
-                    zipped_in_element[5],
                 ],
                 [modified_output],
             )
