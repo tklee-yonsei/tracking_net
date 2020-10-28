@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.getcwd())
 
 import time
-from typing import List
+from typing import List, Optional
 
 import common_py
 from common_py.dl.report import acc_loss_plot
@@ -32,6 +32,19 @@ if __name__ == "__main__":
     from models.semantic_segmentation.unet_l4.config_005 import UnetL4ModelHelper
 
     variable_unet_weights_file_name = "training__model_unet_l4__config_005__run_20201021-141844.epoch_25-val_loss_0.150-val_mean_iou_0.931.hdf5"
+
+    # Continue training
+    continue_tf_log_folder: Optional[str] = None
+    continue_from_model: Optional[str] = None
+    continue_initial_epoch: Optional[int] = None
+    # continue_tf_log_folder: Optional[
+    #     str
+    # ] = "_training__model_ref_local_tracking_model_003__config_001__run_20201028-131347"
+    # continue_from_model: Optional[
+    #     str
+    # ] = "training__model_ref_local_tracking_model_003__config_001__run_20201028-131347.epoch_08-val_loss_0.096-val_acc_0.976.hdf5"
+    # continue_initial_epoch: Optional[int] = 8
+
     # 0. Prepare
     # ----------
 
@@ -64,6 +77,10 @@ if __name__ == "__main__":
     run_log_dir: str = os.path.join(tf_log_folder, training_id)
     training_result_folder: str = os.path.join(base_data_folder, training_id)
     common_py.create_folder(training_result_folder)
+
+    # continue setting (tf log)
+    if continue_tf_log_folder is not None:
+        run_log_dir = os.path.join(tf_log_folder, continue_tf_log_folder)
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
@@ -109,6 +126,10 @@ if __name__ == "__main__":
 
     # b) compile
     model = model_helper.compile_model(model)
+
+    # continue setting (weights)
+    if continue_from_model is not None:
+        model.load_weights(os.path.join(save_weights_folder, continue_from_model))
 
     # 2. Dataset
     # ----------
@@ -175,6 +196,11 @@ if __name__ == "__main__":
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
+    # continue setting (initial epoch)
+    initial_epoch = 0
+    if continue_initial_epoch is not None:
+        initial_epoch = continue_initial_epoch
+
     history: History = model.fit(
         training_sequence,
         epochs=training_num_of_epochs,
@@ -182,7 +208,7 @@ if __name__ == "__main__":
         callbacks=callback_list,
         validation_data=val_sequence,
         shuffle=True,
-        initial_epoch=0,
+        initial_epoch=initial_epoch,
         steps_per_epoch=training_steps_per_epoch,
         validation_steps=val_steps,
         validation_freq=val_freq,
