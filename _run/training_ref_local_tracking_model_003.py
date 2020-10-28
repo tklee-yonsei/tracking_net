@@ -2,6 +2,8 @@ import math
 import os
 import sys
 
+from common_py.folder import files_in_folder
+
 sys.path.append(os.getcwd())
 
 import time
@@ -134,340 +136,165 @@ if __name__ == "__main__":
     input_sizes = model_helper.model_descriptor.get_input_sizes()
 
     # a) main image
-    def __input_main_image_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
-        seed: int = 42,
-    ) -> DistFlowManager:
-        _each_transformed_image_save_function_optional = None
-        if save_folder_and_prefix is not None:
-            _each_transformed_image_save_function_optional = toolz.curry(
-                save_batch_transformed_img
-            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
-        _img_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="grayscale",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _distributor: Distributor = Distributor(
-            resize_to=input_sizes[0],
-            image_transform_function=preprocessing_function,
-            each_transformed_image_save_function_optional=_each_transformed_image_save_function_optional,
-            transform_function_for_all=img_to_ratio,
-        )
-        _image_flow_manager: DistFlowManager = DistFlowManager(
-            flow_from_directory=_img_flow, distributors=[_distributor],
-        )
-        return _image_flow_manager
+    import cv2
+    import tensorflow as tf
 
-    training_main_image_flow_manager = __input_main_image_flow(
-        dataset_directory=training_main_image_folder,
-        batch_size=training_batch_size,
-        preprocessing_function=input_main_image_preprocessing_function,
-        # save_folder_and_prefix=(training_result_folder, "training_main_image_"),
-        shuffle=True,
-    )
-    val_main_image_flow_manager = __input_main_image_flow(
-        dataset_directory=val_main_image_folder,
-        batch_size=val_batch_size,
-        preprocessing_function=input_main_image_preprocessing_function,
-        shuffle=False,
-    )
-
-    # b) ref image
-    def __input_ref_image_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
-        seed: int = 42,
-    ) -> DistFlowManager:
-        _each_transformed_image_save_function_optional = None
-        if save_folder_and_prefix is not None:
-            _each_transformed_image_save_function_optional = toolz.curry(
-                save_batch_transformed_img
-            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
-        _img_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="grayscale",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _distributor: Distributor = Distributor(
-            resize_to=input_sizes[0],
-            image_transform_function=preprocessing_function,
-            each_transformed_image_save_function_optional=_each_transformed_image_save_function_optional,
-            transform_function_for_all=img_to_ratio,
-        )
-        _image_flow_manager: DistFlowManager = DistFlowManager(
-            flow_from_directory=_img_flow, distributors=[_distributor],
-        )
-        return _image_flow_manager
-
-    training_ref_image_flow_manager = __input_ref_image_flow(
-        dataset_directory=training_ref_image_folder,
-        batch_size=training_batch_size,
-        preprocessing_function=input_ref_image_preprocessing_function,
-        # save_folder_and_prefix=(training_result_folder, "training_ref_image_"),
-        shuffle=True,
-    )
-    val_ref_image_flow_manager = __input_ref_image_flow(
-        dataset_directory=val_ref_image_folder,
-        batch_size=val_batch_size,
-        preprocessing_function=input_ref_image_preprocessing_function,
-        shuffle=False,
-    )
-
-    # c) ref result label
-    def __input_result_label_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        distributors: List[Distributor],
-        seed: int = 42,
-    ) -> DistFlowManager:
-        _img_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="rgb",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _image_flow_manager: DistFlowManager = DistFlowManager(
-            flow_from_directory=_img_flow, distributors=distributors,
-        )
-        return _image_flow_manager
-
-    def save_batch_transformed_img2(
-        target_folder: str,
-        prefix: str,
-        index_num: int,
-        batch_num: int,
-        image: np.ndarray,
-    ) -> None:
-        """
-        배치 변환된 이미지를 저장합니다.
-
-        Parameters
-        ----------
-        target_folder : str
-            타겟 폴더
-        prefix : str
-            파일의 맨 앞에 붙을 prefix
-        index_num : int
-            파일의 인덱스 번호
-        batch_num : int
-            파일의 배치 번호
-        image : np.ndarray
-            이미지
-        """
-        import cv2
-
-        for i in range(image.shape[2]):
-            img_name = "{}img_transformed_{:04d}_{:02d}_{:02d}.png".format(
-                prefix, index_num, batch_num, i
+    class RefTrackingSequence(tf.keras.utils.Sequence):
+        def __init__(
+            self,
+            image_file_names: List[str],
+            main_image_folder_name: str,
+            ref_image_folder_name: str,
+            ref_result_label_folder_name: str,
+            output_label_folder_name: str,
+            ref_result1_preprocessing_function: Callable[[np.ndarray], np.ndarray],
+            ref_result2_preprocessing_function: Callable[[np.ndarray], np.ndarray],
+            ref_result3_preprocessing_function: Callable[[np.ndarray], np.ndarray],
+            ref_result4_preprocessing_function: Callable[[np.ndarray], np.ndarray],
+            output_label_preprocessing_function: Callable[
+                [np.ndarray, np.ndarray], np.ndarray
+            ],
+            main_image_preprocessing_function: Optional[
+                Callable[[np.ndarray], np.ndarray]
+            ] = None,
+            ref_image_preprocessing_function: Optional[
+                Callable[[np.ndarray], np.ndarray]
+            ] = None,
+            batch_size: int = 1,
+            shuffle: bool = False,
+            seed: int = 42,
+        ):
+            self.image_file_names = image_file_names
+            self.main_image_folder_name = main_image_folder_name
+            self.ref_image_folder_name = ref_image_folder_name
+            self.ref_result_label_folder_name = ref_result_label_folder_name
+            self.output_label_folder_name = output_label_folder_name
+            self.main_image_preprocessing_function = main_image_preprocessing_function
+            self.ref_image_preprocessing_function = ref_image_preprocessing_function
+            self.ref_result1_preprocessing_function = ref_result1_preprocessing_function
+            self.ref_result2_preprocessing_function = ref_result2_preprocessing_function
+            self.ref_result3_preprocessing_function = ref_result3_preprocessing_function
+            self.ref_result4_preprocessing_function = ref_result4_preprocessing_function
+            self.output_label_preprocessing_function = (
+                output_label_preprocessing_function
             )
-            img_fullpath = os.path.join(target_folder, img_name)
-            cv2.imwrite(img_fullpath, image[:, :, i] * 255)
+            self.batch_size = batch_size
+            self.shuffle = shuffle
+            self.seed = seed
 
-    ref1_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref_label_1_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref1_result_"),
-    )
-    ref2_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref_label_2_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref2_result_"),
-    )
-    ref3_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref_label_3_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref3_result_"),
-    )
-    ref4_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        image_transform_function=input_ref_label_4_preprocessing_function,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img2
-        # )(training_result_folder, "training_ref3_result_"),
-    )
-    output_helper_ref_result_distributor: Distributor = Distributor(
-        resize_to=input_sizes[0],
-        # image_transform_function=lambda im: im,
-        # each_transformed_image_save_function_optional=toolz.curry(
-        #     save_batch_transformed_img
-        # )(training_result_folder, "training_output_helper_ref_"),
-    )
+        def __len__(self):
+            return math.ceil(len(self.image_file_names) / self.batch_size)
 
-    training_ref_result_flow_manager = __input_result_label_flow(
-        dataset_directory=training_ref_result_label_folder,
-        batch_size=training_batch_size,
-        shuffle=True,
-        distributors=[
-            ref1_result_distributor,
-            ref2_result_distributor,
-            ref3_result_distributor,
-            ref4_result_distributor,
-            output_helper_ref_result_distributor,
-        ],
-    )
-    val_ref_result_flow_manager = __input_result_label_flow(
-        dataset_directory=val_ref_result_label_folder,
-        batch_size=val_batch_size,
-        shuffle=False,
-        distributors=[
-            ref1_result_distributor,
-            ref2_result_distributor,
-            ref3_result_distributor,
-            ref4_result_distributor,
-            output_helper_ref_result_distributor,
-        ],
-    )
+        def __getitem__(self, idx):
+            batch_image_file_names = self.image_file_names[
+                idx * self.batch_size : (idx + 1) * self.batch_size
+            ]
 
-    # 2.2 Output ---------
-    output_sizes = model_helper.model_descriptor.get_output_sizes()
+            batch_main_images = []
+            batch_ref_images = []
+            batch_ref1_results = []
+            batch_ref2_results = []
+            batch_ref3_results = []
+            batch_ref4_results = []
+            batch_output_labels = []
+            for image_file_name in batch_image_file_names:
+                main_img = cv2.imread(
+                    os.path.join(self.main_image_folder_name, image_file_name),
+                    cv2.IMREAD_GRAYSCALE,
+                )
+                if self.main_image_preprocessing_function is not None:
+                    main_img = self.main_image_preprocessing_function(main_img)
+                batch_main_images.append(main_img)
 
-    # a) label
-    def __output_label_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
-        seed: int = 42,
-    ) -> DistFlowManager:
-        _each_transformed_label_save_function_optional = None
-        if save_folder_and_prefix is not None:
-            _each_transformed_label_save_function_optional = toolz.curry(
-                save_batch_transformed_img
-            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
-        _label_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="rgb",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _distributor: Distributor = Distributor(
-            resize_to=output_sizes[0],
-            image_transform_function=preprocessing_function,
-            each_transformed_image_save_function_optional=_each_transformed_label_save_function_optional,
-            # transform_function_for_all=img_to_ratio,
-        )
-        _image_flow_manager: DistFlowManager = DistFlowManager(
-            flow_from_directory=_label_flow, distributors=[_distributor],
-        )
-        return _image_flow_manager
+                ref_img = cv2.imread(
+                    os.path.join(self.ref_image_folder_name, image_file_name),
+                    cv2.IMREAD_GRAYSCALE,
+                )
+                if self.ref_image_preprocessing_function is not None:
+                    ref_img = self.ref_image_preprocessing_function(ref_img)
+                batch_ref_images.append(ref_img)
 
-    training_output_main_label_flow_manager = __output_label_flow(
-        dataset_directory=training_output_main_label_folder,
+                ref_result_label = cv2.imread(
+                    os.path.join(self.ref_result_label_folder_name, image_file_name)
+                )
+
+                ref_result1 = self.ref_result1_preprocessing_function(ref_result_label)
+                batch_ref1_results.append(ref_result1)
+
+                ref_result2 = self.ref_result2_preprocessing_function(ref_result_label)
+                batch_ref2_results.append(ref_result2)
+
+                ref_result3 = self.ref_result3_preprocessing_function(ref_result_label)
+                batch_ref3_results.append(ref_result3)
+
+                ref_result4 = self.ref_result4_preprocessing_function(ref_result_label)
+                batch_ref4_results.append(ref_result4)
+
+                output_label = cv2.imread(
+                    os.path.join(self.output_label_folder_name, image_file_name)
+                )
+                output_label = self.output_label_preprocessing_function(
+                    output_label, ref_result_label,
+                )
+                batch_output_labels.append(output_label)
+
+            X = [
+                np.array(batch_main_images),
+                np.array(batch_ref_images),
+                np.array(batch_ref1_results),
+                np.array(batch_ref2_results),
+                np.array(batch_ref3_results),
+                np.array(batch_ref4_results),
+            ]
+            Y = [np.array(batch_output_labels)]
+
+            return (X, Y)
+
+    training_images_file_names = files_in_folder(training_main_image_folder)
+    training_samples = len(training_images_file_names)
+    training_sequence = RefTrackingSequence(
+        image_file_names=training_images_file_names,
+        main_image_folder_name=training_main_image_folder,
+        ref_image_folder_name=training_ref_image_folder,
+        ref_result_label_folder_name=training_ref_result_label_folder,
+        output_label_folder_name=training_output_main_label_folder,
+        main_image_preprocessing_function=toolz.compose_left(
+            input_main_image_preprocessing_function, img_to_ratio
+        ),
+        ref_image_preprocessing_function=toolz.compose_left(
+            input_ref_image_preprocessing_function, img_to_ratio
+        ),
+        ref_result1_preprocessing_function=input_ref_label_1_preprocessing_function,
+        ref_result2_preprocessing_function=input_ref_label_2_preprocessing_function,
+        ref_result3_preprocessing_function=input_ref_label_3_preprocessing_function,
+        ref_result4_preprocessing_function=input_ref_label_4_preprocessing_function,
+        output_label_preprocessing_function=output_label_preprocessing_function,
         batch_size=training_batch_size,
         shuffle=True,
     )
-    val_output_main_label_flow_manager = __output_label_flow(
-        dataset_directory=val_output_main_label_folder,
+
+    val_images_file_names = files_in_folder(val_main_image_folder)
+    val_samples = len(val_images_file_names)
+    val_sequence = RefTrackingSequence(
+        image_file_names=val_images_file_names,
+        main_image_folder_name=val_main_image_folder,
+        ref_image_folder_name=val_ref_image_folder,
+        ref_result_label_folder_name=val_ref_result_label_folder,
+        output_label_folder_name=val_output_main_label_folder,
+        main_image_preprocessing_function=toolz.compose_left(
+            input_main_image_preprocessing_function, img_to_ratio
+        ),
+        ref_image_preprocessing_function=toolz.compose_left(
+            input_ref_image_preprocessing_function, img_to_ratio
+        ),
+        ref_result1_preprocessing_function=input_ref_label_1_preprocessing_function,
+        ref_result2_preprocessing_function=input_ref_label_2_preprocessing_function,
+        ref_result3_preprocessing_function=input_ref_label_3_preprocessing_function,
+        ref_result4_preprocessing_function=input_ref_label_4_preprocessing_function,
+        output_label_preprocessing_function=output_label_preprocessing_function,
         batch_size=val_batch_size,
         shuffle=False,
     )
-
-    # 2.3 Inout ---------
-    def __inout_dist_generator_infos(
-        input_flows: List[DistFlowManager],
-        output_flows: List[DistFlowManager],
-        batch_size: int,
-    ) -> Tuple[Generator, int, int, List[str]]:
-        _in_out_generator = DistInOutGenerator(
-            input_flows=input_flows, output_flows=output_flows,
-        )
-
-        _generator = _in_out_generator.get_generator()
-        _samples = _in_out_generator.get_samples()
-        _nb_samples = math.ceil(_samples / batch_size)
-
-        return _generator, _samples, _nb_samples
-
-    (
-        training_generator,
-        training_samples,
-        training_nb_samples,
-    ) = __inout_dist_generator_infos(
-        input_flows=[
-            training_main_image_flow_manager,
-            training_ref_image_flow_manager,
-            training_ref_result_flow_manager,
-        ],
-        output_flows=[training_output_main_label_flow_manager],
-        batch_size=training_batch_size,
-    )
-    (val_generator, val_samples, val_nb_samples) = __inout_dist_generator_infos(
-        input_flows=[
-            val_main_image_flow_manager,
-            val_ref_image_flow_manager,
-            val_ref_result_flow_manager,
-        ],
-        output_flows=[val_output_main_label_flow_manager],
-        batch_size=val_batch_size,
-    )
-
-    # 2.4 Custom Generator Transform ---------
-    def _zipped_transform(zipped_inout):
-        for idx, zipped_inout_element in enumerate(zipped_inout):
-            zipped_in_element = zipped_inout_element[0]
-            batch_size = zipped_in_element[0].shape[0]
-            zipped_out_element = zipped_inout_element[1]
-
-            def _modify_output(_in, _out, _batch_size):
-                batch_out_list = []
-                for i in range(_batch_size):
-                    current_batch_in_list = _in[i]
-                    current_batch_out_list = _out[i]
-                    modified_out_list = output_label_preprocessing_function(
-                        current_batch_out_list, current_batch_in_list
-                    )
-                    batch_out_list.append(modified_out_list)
-                return np.array(batch_out_list)
-
-            modified_output = _modify_output(
-                zipped_in_element[6], zipped_out_element[0], batch_size
-            )
-
-            # for i in range(batch_size):
-            #     save_batch_transformed_img2(
-            #         training_result_folder,
-            #         "training_output_main_label_",
-            #         idx,
-            #         i,
-            #         modified_output[i],
-            #     )
-
-            yield (
-                [
-                    zipped_in_element[0],
-                    zipped_in_element[1],
-                    zipped_in_element[2],
-                    zipped_in_element[3],
-                    zipped_in_element[4],
-                    zipped_in_element[5],
-                ],
-                [modified_output],
-            )
-
-    training_generator2 = _zipped_transform(training_generator)
-    val_generator2 = _zipped_transform(val_generator)
 
     # 3. Training
     # -----------
@@ -504,20 +331,20 @@ if __name__ == "__main__":
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
-    history: History = model.fit_generator(
-        training_generator2,
-        callbacks=callback_list,
-        steps_per_epoch=training_steps_per_epoch,
+    history: History = model.fit(
+        training_sequence,
         epochs=training_num_of_epochs,
         verbose=1,
-        validation_data=val_generator2,
-        validation_steps=val_steps,
-        validation_freq=val_freq,
-        max_queue_size=2,
-        workers=1,
-        use_multiprocessing=False,
+        callbacks=callback_list,
+        validation_data=val_sequence,
         shuffle=True,
         initial_epoch=0,
+        steps_per_epoch=training_steps_per_epoch,
+        validation_steps=val_steps,
+        validation_freq=val_freq,
+        max_queue_size=4,
+        workers=8,
+        use_multiprocessing=True,
     )
 
     # History display
