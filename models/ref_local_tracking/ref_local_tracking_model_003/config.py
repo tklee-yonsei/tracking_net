@@ -1,8 +1,11 @@
+import math
 import os
+from random import Random
 from typing import Callable, Generator, List, Optional, Tuple
 
 import cv2
 import numpy as np
+import tensorflow as tf
 import toolz
 from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
 from image_keras.utils.image_color_transform import (
@@ -152,6 +155,126 @@ class RefModel003ModelHelper(ModelHelper):
             target_tensors=target_tensors,
             **kwargs
         )
+
+
+class RefTrackingSequence(tf.keras.utils.Sequence):
+    def __init__(
+        self,
+        image_file_names: List[str],
+        main_image_folder_name: str,
+        ref_image_folder_name: str,
+        ref_result_label_folder_name: str,
+        output_label_folder_name: str,
+        ref_result1_preprocessing_function: Callable[
+            [np.ndarray], np.ndarray
+        ] = input_ref_label_1_preprocessing_function,
+        ref_result2_preprocessing_function: Callable[
+            [np.ndarray], np.ndarray
+        ] = input_ref_label_2_preprocessing_function,
+        ref_result3_preprocessing_function: Callable[
+            [np.ndarray], np.ndarray
+        ] = input_ref_label_3_preprocessing_function,
+        ref_result4_preprocessing_function: Callable[
+            [np.ndarray], np.ndarray
+        ] = input_ref_label_4_preprocessing_function,
+        output_label_preprocessing_function: Callable[
+            [np.ndarray, np.ndarray], np.ndarray
+        ] = output_label_preprocessing_function,
+        main_image_preprocessing_function: Optional[
+            Callable[[np.ndarray], np.ndarray]
+        ] = toolz.compose_left(input_main_image_preprocessing_function, img_to_ratio),
+        ref_image_preprocessing_function: Optional[
+            Callable[[np.ndarray], np.ndarray]
+        ] = toolz.compose_left(input_ref_image_preprocessing_function, img_to_ratio),
+        batch_size: int = 1,
+        shuffle: bool = False,
+        seed: int = 42,
+    ):
+        self.image_file_names = image_file_names
+        self.main_image_folder_name = main_image_folder_name
+        self.ref_image_folder_name = ref_image_folder_name
+        self.ref_result_label_folder_name = ref_result_label_folder_name
+        self.output_label_folder_name = output_label_folder_name
+        self.main_image_preprocessing_function = main_image_preprocessing_function
+        self.ref_image_preprocessing_function = ref_image_preprocessing_function
+        self.ref_result1_preprocessing_function = ref_result1_preprocessing_function
+        self.ref_result2_preprocessing_function = ref_result2_preprocessing_function
+        self.ref_result3_preprocessing_function = ref_result3_preprocessing_function
+        self.ref_result4_preprocessing_function = ref_result4_preprocessing_function
+        self.output_label_preprocessing_function = output_label_preprocessing_function
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.seed = seed
+        if shuffle is True:
+            Random(seed).shuffle(self.image_file_names)
+
+    def __len__(self):
+        return math.ceil(len(self.image_file_names) / self.batch_size)
+
+    def __getitem__(self, idx):
+        batch_image_file_names = self.image_file_names[
+            idx * self.batch_size : (idx + 1) * self.batch_size
+        ]
+
+        batch_main_images = []
+        batch_ref_images = []
+        batch_ref1_results = []
+        batch_ref2_results = []
+        batch_ref3_results = []
+        batch_ref4_results = []
+        batch_output_labels = []
+        for image_file_name in batch_image_file_names:
+            main_img = cv2.imread(
+                os.path.join(self.main_image_folder_name, image_file_name),
+                cv2.IMREAD_GRAYSCALE,
+            )
+            if self.main_image_preprocessing_function is not None:
+                main_img = self.main_image_preprocessing_function(main_img)
+            batch_main_images.append(main_img)
+
+            ref_img = cv2.imread(
+                os.path.join(self.ref_image_folder_name, image_file_name),
+                cv2.IMREAD_GRAYSCALE,
+            )
+            if self.ref_image_preprocessing_function is not None:
+                ref_img = self.ref_image_preprocessing_function(ref_img)
+            batch_ref_images.append(ref_img)
+
+            ref_result_label = cv2.imread(
+                os.path.join(self.ref_result_label_folder_name, image_file_name)
+            )
+
+            ref_result1 = self.ref_result1_preprocessing_function(ref_result_label)
+            batch_ref1_results.append(ref_result1)
+
+            ref_result2 = self.ref_result2_preprocessing_function(ref_result_label)
+            batch_ref2_results.append(ref_result2)
+
+            ref_result3 = self.ref_result3_preprocessing_function(ref_result_label)
+            batch_ref3_results.append(ref_result3)
+
+            ref_result4 = self.ref_result4_preprocessing_function(ref_result_label)
+            batch_ref4_results.append(ref_result4)
+
+            output_label = cv2.imread(
+                os.path.join(self.output_label_folder_name, image_file_name)
+            )
+            output_label = self.output_label_preprocessing_function(
+                output_label, ref_result_label,
+            )
+            batch_output_labels.append(output_label)
+
+        X = [
+            np.array(batch_main_images),
+            np.array(batch_ref_images),
+            np.array(batch_ref1_results),
+            np.array(batch_ref2_results),
+            np.array(batch_ref3_results),
+            np.array(batch_ref4_results),
+        ]
+        Y = [np.array(batch_output_labels)]
+
+        return (X, Y)
 
 
 # single processing
