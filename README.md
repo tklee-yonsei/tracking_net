@@ -98,6 +98,7 @@ python _run/experiment_name.py
 
     ```shell
     docker attach 4c25ce8443e6
+    docker attach $(docker ps -aq)
     ```
 
 ### (Optional) Tensorboard
@@ -112,6 +113,7 @@ python _run/experiment_name.py
 
     ```shell
     docker exec 7f1840636c9d tensorboard --logdir ./save/tf_logs/ --host 0.0.0.0 &
+    docker exec $(docker ps -aq) tensorboard --logdir ./save/tf_logs/ --host 0.0.0.0 &
     ```
 
 * Using ssh -L

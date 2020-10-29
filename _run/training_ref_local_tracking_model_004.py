@@ -133,9 +133,9 @@ if __name__ == "__main__":
 
     # 2. Dataset
     # ----------
-    training_batch_size: int = 4
-    val_batch_size: int = 4
-    test_batch_size: int = 4
+    training_batch_size: int = 2
+    val_batch_size: int = 2
+    test_batch_size: int = 2
 
     # 2.1 Training, Validation Generator ---------
     training_images_file_names = files_in_folder(training_main_image_folder)
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
-    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir, write_images=True)
+    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir)
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
