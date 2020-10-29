@@ -177,15 +177,33 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
         ref_result4_preprocessing_function: Callable[
             [np.ndarray], np.ndarray
         ] = input_ref_label_4_preprocessing_function,
-        output_label_preprocessing_function: Callable[
+        output_label_compose_function: Callable[
             [np.ndarray, np.ndarray], np.ndarray
         ] = output_label_preprocessing_function,
+        output_label_preprocessing_function: Callable[
+            [np.ndarray], np.ndarray
+        ] = toolz.compose_left(
+            lambda img: img_resize(img, (256, 256), InterpolationEnum.inter_nearest),
+        ),
         main_image_preprocessing_function: Optional[
             Callable[[np.ndarray], np.ndarray]
-        ] = toolz.compose_left(input_main_image_preprocessing_function, img_to_ratio),
+        ] = toolz.compose_left(
+            lambda img: img_resize(img, (256, 256), InterpolationEnum.inter_nearest),
+            input_main_image_preprocessing_function,
+            img_to_ratio,
+        ),
         ref_image_preprocessing_function: Optional[
             Callable[[np.ndarray], np.ndarray]
-        ] = toolz.compose_left(input_ref_image_preprocessing_function, img_to_ratio),
+        ] = toolz.compose_left(
+            lambda img: img_resize(img, (256, 256), InterpolationEnum.inter_nearest),
+            input_ref_image_preprocessing_function,
+            img_to_ratio,
+        ),
+        ref_result_preprocessing_function: Optional[
+            Callable[[np.ndarray], np.ndarray]
+        ] = toolz.compose_left(
+            lambda img: img_resize(img, (256, 256), InterpolationEnum.inter_nearest),
+        ),
         batch_size: int = 1,
         shuffle: bool = False,
         seed: int = 42,
@@ -202,6 +220,8 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
         self.ref_result3_preprocessing_function = ref_result3_preprocessing_function
         self.ref_result4_preprocessing_function = ref_result4_preprocessing_function
         self.output_label_preprocessing_function = output_label_preprocessing_function
+        self.output_label_compose_function = output_label_compose_function
+        self.ref_result_preprocessing_function = ref_result_preprocessing_function
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.seed = seed
@@ -243,6 +263,10 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
             ref_result_label = cv2.imread(
                 os.path.join(self.ref_result_label_folder_name, image_file_name)
             )
+            if self.ref_result_preprocessing_function is not None:
+                ref_result_label = self.ref_result_preprocessing_function(
+                    ref_result_label
+                )
 
             ref_result1 = self.ref_result1_preprocessing_function(ref_result_label)
             batch_ref1_results.append(ref_result1)
@@ -259,7 +283,10 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
             output_label = cv2.imread(
                 os.path.join(self.output_label_folder_name, image_file_name)
             )
-            output_label = self.output_label_preprocessing_function(
+            if self.output_label_preprocessing_function is not None:
+                output_label = self.output_label_preprocessing_function(output_label)
+
+            output_label = self.output_label_compose_function(
                 output_label, ref_result_label,
             )
             batch_output_labels.append(output_label)
