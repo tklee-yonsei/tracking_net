@@ -13,6 +13,7 @@ from image_keras.utils.image_transform import (
     img_to_minmax,
     img_to_ratio,
 )
+from models.semantic_segmentation.unet_l4.common import UNetL4Sequence
 from models.semantic_segmentation.unet_l4.model import unet_l4
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.metrics import BinaryAccuracy, Metric
@@ -34,6 +35,42 @@ input_image_preprocessing_function: Callable[
 output_label_preprocessing_function: Callable[
     [np.ndarray], np.ndarray
 ] = lambda _img: img_to_minmax(_img, 127, (0, 255))
+
+
+class UNetL4ConfigSequence(UNetL4Sequence):
+    def __init__(
+        self,
+        image_file_names: List[str],
+        main_image_folder_name: str,
+        output_label_folder_name: str,
+        main_image_preprocessing_function: Optional[
+            Callable[[np.ndarray], np.ndarray]
+        ] = toolz.compose_left(
+            lambda img: img_resize(img, (256, 256), InterpolationEnum.inter_nearest),
+            input_image_preprocessing_function,
+            img_to_ratio,
+        ),
+        output_label_preprocessing_function: Optional[
+            Callable[[np.ndarray], np.ndarray]
+        ] = toolz.compose_left(
+            lambda img: img_resize(img, (256, 256), InterpolationEnum.inter_nearest),
+            output_label_preprocessing_function,
+            img_to_ratio,
+        ),
+        batch_size: int = 1,
+        shuffle: bool = False,
+        seed: int = 42,
+    ):
+        super(UNetL4ConfigSequence, self).__init__(
+            image_file_names=image_file_names,
+            main_image_folder_name=main_image_folder_name,
+            output_label_folder_name=output_label_folder_name,
+            main_image_preprocessing_function=main_image_preprocessing_function,
+            output_label_preprocessing_function=output_label_preprocessing_function,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            seed=seed,
+        )
 
 
 class UnetL4ModelHelper(ModelHelper):

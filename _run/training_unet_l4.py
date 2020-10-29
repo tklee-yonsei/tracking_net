@@ -1,50 +1,52 @@
-import math
 import os
 import sys
 
 sys.path.append(os.getcwd())
 
 import time
-from typing import Callable, Generator, List, Optional, Tuple
+from typing import List, Optional
 
 import common_py
-import numpy as np
-import toolz
 from common_py.dl.report import acc_loss_plot
+from common_py.folder import files_in_folder
 from image_keras.custom.callbacks_after_epoch import (
     EarlyStoppingAfter,
     ModelCheckpointAfter,
 )
-from image_keras.flow_directory import FlowFromDirectory, ImagesFromDirectory
-from image_keras.inout_generator import (
-    BaseInOutGenerator,
-    FlowManager,
-    save_batch_transformed_img,
-)
-from image_keras.utils.image_transform import img_to_ratio
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
 
 if __name__ == "__main__":
     # Variables
-    from models.semantic_segmentation.unet_l4.config_006 import (
+    from models.semantic_segmentation.unet_l4.config_004 import (
+        UNetL4ConfigSequence,
         UnetL4ModelHelper,
-        input_image_preprocessing_function,
-        output_label_preprocessing_function,
     )
 
     variable_training_dataset_folder = "training_original_20_edge10"
     variable_validation_dataset_folder = "validation_original_20_edge10"
     variable_model_name = "unet_l4"
-    variable_config_id = "006"
+    variable_config_id = "004"
     variable_model_helper = UnetL4ModelHelper()
+
+    # Continue training
+    continue_tf_log_folder: Optional[str] = None
+    continue_from_model: Optional[str] = None
+    continue_initial_epoch: Optional[int] = None
+    # continue_tf_log_folder: Optional[
+    #     str
+    # ] = "_training__model_ref_local_tracking_model_003__config_001__run_20201028-131347"
+    # continue_from_model: Optional[
+    #     str
+    # ] = "training__model_ref_local_tracking_model_003__config_001__run_20201028-131347.epoch_08-val_loss_0.096-val_acc_0.976.hdf5"
+    # continue_initial_epoch: Optional[int] = 8
 
     # 0. Prepare
     # ----------
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
     model_name: str = variable_model_name
-    config_id: str = variable_config_id
     run_id: str = time.strftime("%Y%m%d-%H%M%S")
+    config_id: str = variable_config_id
     training_id: str = "_training__model_{}__config_{}__run_{}".format(
         model_name, config_id, run_id
     )
@@ -69,6 +71,10 @@ if __name__ == "__main__":
     run_log_dir: str = os.path.join(tf_log_folder, training_id)
     training_result_folder: str = os.path.join(base_data_folder, training_id)
     common_py.create_folder(training_result_folder)
+
+    # continue setting (tf log)
+    if continue_tf_log_folder is not None:
+        run_log_dir = os.path.join(tf_log_folder, continue_tf_log_folder)
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
@@ -95,130 +101,35 @@ if __name__ == "__main__":
     # b) compile
     model = model_helper.compile_model(model)
 
+    # continue setting (weights)
+    if continue_from_model is not None:
+        model.load_weights(os.path.join(save_weights_folder, continue_from_model))
+
     # 2. Dataset
     # ----------
     training_batch_size: int = 8
     val_batch_size: int = 8
     test_batch_size: int = 8
 
-    # 2.1 Input ---------
-    input_sizes = model_helper.model_descriptor.get_input_sizes()
-
-    # a) image
-    def __input_image_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
-        seed: int = 42,
-    ) -> FlowManager:
-        _each_transformed_image_save_function_optional = None
-        if save_folder_and_prefix is not None:
-            _each_transformed_image_save_function_optional = toolz.curry(
-                save_batch_transformed_img
-            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
-        _img_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="grayscale",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _image_flow_manager: FlowManager = FlowManager(
-            flow_from_directory=_img_flow,
-            resize_to=input_sizes[0],
-            image_transform_function=preprocessing_function,
-            each_transformed_image_save_function_optional=_each_transformed_image_save_function_optional,
-            transform_function_for_all=img_to_ratio,
-        )
-        return _image_flow_manager
-
-    training_image_flow_manager = __input_image_flow(
-        dataset_directory=training_image_folder,
+    # 2.1 Training, Validation Generator ---------
+    training_images_file_names = files_in_folder(training_image_folder)
+    training_samples = len(training_images_file_names)
+    training_sequence = UNetL4ConfigSequence(
+        image_file_names=training_images_file_names,
+        main_image_folder_name=training_image_folder,
+        output_label_folder_name=training_label_folder,
         batch_size=training_batch_size,
-        preprocessing_function=input_image_preprocessing_function,
-        # save_folder_and_prefix=(training_result_folder, "training_image_"),
         shuffle=True,
     )
-    val_image_flow_manager = __input_image_flow(
-        dataset_directory=val_image_folder,
+
+    val_images_file_names = files_in_folder(val_image_folder)
+    val_samples = len(val_images_file_names)
+    val_sequence = UNetL4ConfigSequence(
+        image_file_names=val_images_file_names,
+        main_image_folder_name=val_image_folder,
+        output_label_folder_name=val_label_folder,
         batch_size=val_batch_size,
-        preprocessing_function=input_image_preprocessing_function,
         shuffle=False,
-    )
-
-    # 2.2 Output ---------
-    output_sizes = model_helper.model_descriptor.get_output_sizes()
-
-    # a) label
-    def __output_label_flow(
-        dataset_directory: str,
-        batch_size: int,
-        shuffle: bool,
-        preprocessing_function: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        save_folder_and_prefix: Optional[Tuple[str, str]] = None,
-        seed: int = 42,
-    ) -> FlowManager:
-        _each_transformed_label_save_function_optional = None
-        if save_folder_and_prefix is not None:
-            _each_transformed_label_save_function_optional = toolz.curry(
-                save_batch_transformed_img
-            )(save_folder_and_prefix[0], save_folder_and_prefix[1])
-        _label_flow: FlowFromDirectory = ImagesFromDirectory(
-            dataset_directory=dataset_directory,
-            batch_size=batch_size,
-            color_mode="grayscale",
-            shuffle=shuffle,
-            seed=seed,
-        )
-        _label_flow_manager: FlowManager = FlowManager(
-            flow_from_directory=_label_flow,
-            resize_to=output_sizes[0],
-            image_transform_function=preprocessing_function,
-            each_transformed_image_save_function_optional=_each_transformed_label_save_function_optional,
-            transform_function_for_all=img_to_ratio,
-        )
-        return _label_flow_manager
-
-    training_label_flow_manager = __output_label_flow(
-        dataset_directory=training_label_folder,
-        batch_size=training_batch_size,
-        preprocessing_function=output_label_preprocessing_function,
-        # save_folder_and_prefix=(training_result_folder, "training_label_"),
-        shuffle=True,
-    )
-    val_label_flow_manager = __output_label_flow(
-        dataset_directory=val_label_folder,
-        batch_size=val_batch_size,
-        preprocessing_function=output_label_preprocessing_function,
-        shuffle=False,
-    )
-
-    # 2.3 Inout ---------
-    def __inout_generator_infos(
-        input_flows: List[FlowManager], output_flows: List[FlowManager]
-    ) -> Tuple[Generator, int, int, List[str]]:
-        _in_out_generator = BaseInOutGenerator(
-            input_flows=input_flows, output_flows=output_flows,
-        )
-
-        _generator = _in_out_generator.get_generator()
-        _samples = _in_out_generator.get_samples()
-        _nb_samples = math.ceil(_samples / training_batch_size)
-
-        return _generator, _samples, _nb_samples
-
-    (
-        training_generator,
-        training_samples,
-        training_nb_samples,
-    ) = __inout_generator_infos(
-        input_flows=[training_image_flow_manager],
-        output_flows=[training_label_flow_manager],
-    )
-    (val_generator, val_samples, val_nb_samples) = __inout_generator_infos(
-        input_flows=[val_image_flow_manager], output_flows=[val_label_flow_manager],
     )
 
     # 3. Training
@@ -257,20 +168,25 @@ if __name__ == "__main__":
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
-    history: History = model.fit_generator(
-        training_generator,
-        callbacks=callback_list,
-        steps_per_epoch=training_steps_per_epoch,
+    # continue setting (initial epoch)
+    initial_epoch = 0
+    if continue_initial_epoch is not None:
+        initial_epoch = continue_initial_epoch
+
+    history: History = model.fit(
+        training_sequence,
         epochs=training_num_of_epochs,
         verbose=1,
-        validation_data=val_generator,
+        callbacks=callback_list,
+        validation_data=val_sequence,
+        shuffle=True,
+        initial_epoch=initial_epoch,
+        steps_per_epoch=training_steps_per_epoch,
         validation_steps=val_steps,
         validation_freq=val_freq,
         max_queue_size=10,
-        workers=1,
-        use_multiprocessing=False,
-        shuffle=True,
-        initial_epoch=0,
+        workers=8,
+        use_multiprocessing=True,
     )
 
     # History display
