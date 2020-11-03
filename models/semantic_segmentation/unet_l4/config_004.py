@@ -69,7 +69,7 @@ def output_label_preprocessing_sequence(img: np.ndarray) -> np.ndarray:
 
 def tf_output_label_processing(img):
     img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
-    img = tf_img_to_minmax(img, 127)
+    img = tf_img_to_minmax(img, 127, (0, 255))
     img = tf.cast(img, tf.float32)
     img = tf.math.divide(img, 255.0)
     img = tf.reshape(img, (256, 256, 1))
