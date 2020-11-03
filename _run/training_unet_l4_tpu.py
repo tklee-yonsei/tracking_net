@@ -45,13 +45,13 @@ if __name__ == "__main__":
     continue_tf_log_folder: Optional[str] = None
     continue_from_model: Optional[str] = None
     continue_initial_epoch: Optional[int] = None
-    # continue_tf_log_folder: Optional[
-    #     str
-    # ] = "_training__model_ref_local_tracking_model_003__config_001__run_20201028-131347"
-    # continue_from_model: Optional[
-    #     str
-    # ] = "training__model_ref_local_tracking_model_003__config_001__run_20201028-131347.epoch_08-val_loss_0.096-val_acc_0.976.hdf5"
-    # continue_initial_epoch: Optional[int] = 8
+    continue_tf_log_folder: Optional[
+        str
+    ] = "_training__model_unet_l4__config_004__run_20201103-015536"
+    continue_from_model: Optional[
+        str
+    ] = "training__model_unet_l4__config_004__run_20201103-015536.epoch_06-val_loss_0.238-val_accuracy_0.973"
+    continue_initial_epoch: Optional[int] = 6
 
     # 0. Prepare
     # ----------
@@ -85,9 +85,11 @@ if __name__ == "__main__":
     training_result_folder: str = os.path.join(base_data_folder, training_id)
     common_py.create_folder(training_result_folder)
 
+    check_weight_name = training_id[1:]
     # continue setting (tf log)
     if continue_tf_log_folder is not None:
         run_log_dir = os.path.join(tf_log_folder, continue_tf_log_folder)
+        check_weight_name = continue_tf_log_folder[1:]
 
     # b) dataset folders
     training_dataset_folder: str = os.path.join(
@@ -112,6 +114,12 @@ if __name__ == "__main__":
         # a) model (from python code)
         model = model_helper.get_model()
 
+        # continue setting (weights)
+        if continue_from_model is not None:
+            model = tf.keras.models.load_model(
+                os.path.join(save_weights_folder, continue_from_model)
+            )
+
         # b) compile
         # model = model_helper.compile_model(model)
         from tensorflow.keras.losses import BinaryCrossentropy
@@ -124,10 +132,6 @@ if __name__ == "__main__":
             loss_weights=[1.0],
             metrics=[BinaryAccuracy(name="accuracy")],
         )
-
-        # continue setting (weights)
-        if continue_from_model is not None:
-            model.load_weights(os.path.join(save_weights_folder, continue_from_model))
 
     # 2. Dataset
     # ----------
@@ -197,7 +201,7 @@ if __name__ == "__main__":
     model_checkpoint: Callback = ModelCheckpointAfter(
         os.path.join(
             save_weights_folder,
-            training_id[1:]
+            check_weight_name
             + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-"
             + val_checkpoint_metric
             + "_{"
