@@ -58,7 +58,9 @@ if __name__ == "__main__":
     # training_id: 사용한 모델, Training 날짜
     # 0.1 ID ---------
     model_name: str = variable_model_name
-    run_id: str = time.strftime("%Y%m%d-%H%M%S")
+    os.environ["TZ"] = "Asia/Seoul"
+    time.tzset()
+    run_id: str = time.strftime("%Y%m%d_%H%M%S")
     config_id: str = variable_config_id
     training_id: str = "_training__model_{}__config_{}__run_{}".format(
         model_name, config_id, run_id
