@@ -20,6 +20,21 @@ def tf_img_to_minmax(
 
 
 def tf_equalize_histogram(image):
+    """
+    Tensorflow Image Histogram Equalization
+
+    https://stackoverflow.com/questions/42835247/how-to-implement-histogram-equalization-for-images-in-tensorflow
+
+    Parameters
+    ----------
+    image : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     values_range = tf.constant([0.0, 255.0], dtype=tf.float32)
     histogram = tf.histogram_fixed_width(tf.cast(image, tf.float32), values_range, 256)
     cdf = tf.cumsum(histogram)
