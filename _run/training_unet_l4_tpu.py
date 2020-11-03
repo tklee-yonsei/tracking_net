@@ -19,6 +19,7 @@ from models.semantic_segmentation.unet_l4.config_004 import (
 )
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
 from utils.tf_images import decode_image
+from utils.tpu import tpu_initialize
 
 if __name__ == "__main__":
     # Variables
@@ -35,23 +36,20 @@ if __name__ == "__main__":
     gs_path = "gs://cell_tracking_dataset"
     tpu_name = "tracking-1"
 
-    resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=tpu_name)
-    tf.config.experimental_connect_to_cluster(resolver)
-    tf.tpu.experimental.initialize_tpu_system(resolver)
-    print("All devices: ", tf.config.list_logical_devices("TPU"))
+    resolver = tpu_initialize(tpu_address=tpu_name)
     strategy = tf.distribute.TPUStrategy(resolver)
 
     # Continue training
     continue_tf_log_folder: Optional[str] = None
     continue_from_model: Optional[str] = None
     continue_initial_epoch: Optional[int] = None
-    continue_tf_log_folder: Optional[
-        str
-    ] = "_training__model_unet_l4__config_004__run_20201103-015536"
-    continue_from_model: Optional[
-        str
-    ] = "training__model_unet_l4__config_004__run_20201103-015536.epoch_06-val_loss_0.238-val_accuracy_0.973"
-    continue_initial_epoch: Optional[int] = 6
+    # continue_tf_log_folder: Optional[
+    #     str
+    # ] = "_training__model_unet_l4__config_004__run_20201103-015536"
+    # continue_from_model: Optional[
+    #     str
+    # ] = "training__model_unet_l4__config_004__run_20201103-015536.epoch_06-val_loss_0.238-val_accuracy_0.973"
+    # continue_initial_epoch: Optional[int] = 6
 
     # 0. Prepare
     # ----------
@@ -216,7 +214,7 @@ if __name__ == "__main__":
     early_stopping: Callback = EarlyStoppingAfter(
         patience=early_stopping_patience, verbose=1, after_epoch=apply_callbacks_after,
     )
-    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir, write_images=True)
+    tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir)
     callback_list: List[Callback] = [tensorboard_cb, model_checkpoint, early_stopping]
 
     # 3.3 Training ---------
