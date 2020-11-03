@@ -202,8 +202,7 @@ if __name__ == "__main__":
             + val_checkpoint_metric
             + "_{"
             + val_checkpoint_metric
-            + ":.3f}.hdf5",
-            # + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-val_mean_iou_{val_mean_iou:.3f}.hdf5",
+            + ":.3f}",
         ),
         verbose=1,
         after_epoch=apply_callbacks_after,
