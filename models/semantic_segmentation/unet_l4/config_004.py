@@ -3,6 +3,7 @@ from typing import Callable, Generator, List, Optional, Tuple
 
 import cv2
 import numpy as np
+import tensorflow as tf
 import toolz
 from image_keras.custom.losses_binary_boundary_crossentropy import (
     BinaryBoundaryCrossentropy,
@@ -21,6 +22,8 @@ from models.semantic_segmentation.unet_l4.model import unet_l4
 from tensorflow.keras.metrics import BinaryAccuracy, Metric
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, Optimizer
+from tensorflow.python.ops.image_ops_impl import ResizeMethod
+from utils.tf_images import tf_equalize_histogram, tf_img_to_minmax
 
 unet_l4_model_descriptor_default: ModelDescriptor = ModelDescriptor(
     inputs=[("input", (256, 256, 1))], outputs=[("output", (256, 256, 1))]
@@ -37,6 +40,40 @@ input_image_preprocessing_function: Callable[
 output_label_preprocessing_function: Callable[
     [np.ndarray], np.ndarray
 ] = lambda _img: img_to_minmax(_img, 127, (0, 255))
+
+
+def main_image_preprocessing_sequence(img: np.ndarray) -> np.ndarray:
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, (256, 256), InterpolationEnum.inter_nearest),
+        input_image_preprocessing_function,
+        img_to_ratio,
+    )(img)
+
+
+def tf_main_image_preprocessing_sequence(img):
+    img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
+    img = tf_equalize_histogram(img)
+    img = tf.cast(img, tf.float32)
+    img = tf.math.divide(img, 255.0)
+    img = tf.reshape(img, (256, 256, 1))
+    return img
+
+
+def output_label_preprocessing_sequence(img: np.ndarray) -> np.ndarray:
+    return toolz.compose_left(
+        lambda _img: img_resize(_img, (256, 256), InterpolationEnum.inter_nearest),
+        output_label_preprocessing_function,
+        img_to_ratio,
+    )(img)
+
+
+def tf_output_label_processing(img):
+    img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
+    img = tf_img_to_minmax(img, 127)
+    img = tf.cast(img, tf.float32)
+    img = tf.math.divide(img, 255.0)
+    img = tf.reshape(img, (256, 256, 1))
+    return img
 
 
 class UNetL4ConfigSequence(UNetL4Sequence):

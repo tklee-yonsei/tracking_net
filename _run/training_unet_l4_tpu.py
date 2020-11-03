@@ -1,8 +1,6 @@
 import os
 import sys
 
-from tensorflow.python.ops.image_ops_impl import ResizeMethod
-
 sys.path.append(os.getcwd())
 
 import time
@@ -11,21 +9,20 @@ from typing import List, Optional
 import common_py
 import tensorflow as tf
 from common_py.dl.report import acc_loss_plot
-from common_py.folder import files_in_folder
-from google.cloud import storage
 from image_keras.custom.callbacks_after_epoch import (
     EarlyStoppingAfter,
     ModelCheckpointAfter,
 )
+from models.semantic_segmentation.unet_l4.config_004 import (
+    tf_main_image_preprocessing_sequence,
+    tf_output_label_processing,
+)
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
-
+from utils.tf_images import decode_image
 
 if __name__ == "__main__":
     # Variables
-    from models.semantic_segmentation.unet_l4.config_004 import (
-        UNetL4ConfigSequence,
-        UnetL4ModelHelper,
-    )
+    from models.semantic_segmentation.unet_l4.config_004 import UnetL4ModelHelper
 
     variable_training_dataset_folder = "training_original_20_edge10"
     variable_validation_dataset_folder = "validation_original_20_edge10"
@@ -139,81 +136,20 @@ if __name__ == "__main__":
     test_batch_size: int = 8
 
     # Processing
-    def decode_image(filename: str, channels: int = 1):
-        bits = tf.io.read_file(filename)
-        image = tf.image.decode_png(bits, channels)
-        return image
-
     # GS Dataset
-    from image_keras.utils.image_transform import (
-        InterpolationEnum,
-        img_resize,
-        img_to_ratio,
-    )
-    from models.semantic_segmentation.unet_l4.config_004 import (
-        input_image_preprocessing_function,
-        output_label_preprocessing_function,
-    )
-
-    def tf_input_image_processing(img):
-        img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
-        # img = tf.py_function(
-        #     func=input_image_preprocessing_function, inp=[img], Tout=tf.int8,
-        # )
-        img = tf.cast(img, tf.float32)
-        img = tf.math.divide(img, 255.0)
-        img = tf.reshape(img, (256, 256, 1))
-        # img = tf.image.per_image_standardization(img)
-        # img = tf.py_function(
-        #     func=(
-        #         lambda _img: img_resize(
-        #             _img, (256, 256), InterpolationEnum.inter_nearest
-        #         )
-        #     ),
-        #     inp=[img],
-        #     Tout=tf.int8,
-        # )
-        # img = tf.py_function(
-        #     func=input_image_preprocessing_function, inp=[img], Tout=tf.int8,
-        # )
-        img = tf.cast(img, tf.float32)
-        # img = img_to_ratio(img)
-        return img
-
-    def tf_output_label_processing(img):
-        img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
-        img = tf.cast(img, tf.float32)
-        img = tf.math.divide(img, 255.0)
-        img = tf.reshape(img, (256, 256, 1))
-        # img = tf.py_function(
-        #     func=(
-        #         lambda _img: img_resize(
-        #             _img, (256, 256), InterpolationEnum.inter_nearest
-        #         )
-        #     ),
-        #     inp=[img],
-        #     Tout=tf.int8,
-        # )
-        # img = tf.py_function(
-        #     func=output_label_preprocessing_function, inp=[img], Tout=tf.int8,
-        # )
-        img = tf.cast(img, tf.float32)
-        # img = img_to_ratio(img)
-        return img
-
     training_image_dataset = tf.data.Dataset.list_files(
         training_image_folder + "/*", shuffle=True, seed=42
     )
 
-    training_image_dataset = training_image_dataset.map(decode_image).map(
-        tf_input_image_processing
-    )
+    training_image_dataset = training_image_dataset.map(
+        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+    ).map(tf_main_image_preprocessing_sequence)
     training_label_dataset = tf.data.Dataset.list_files(
         training_label_folder + "/*", shuffle=True, seed=42
     )
-    training_label_dataset = training_label_dataset.map(decode_image).map(
-        tf_output_label_processing
-    )
+    training_label_dataset = training_label_dataset.map(
+        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+    ).map(tf_output_label_processing)
 
     training_dataset = (
         tf.data.Dataset.zip((training_image_dataset, training_label_dataset))
@@ -226,15 +162,15 @@ if __name__ == "__main__":
     val_image_dataset = tf.data.Dataset.list_files(
         val_image_folder + "/*", shuffle=True, seed=42
     )
-    val_image_dataset = val_image_dataset.map(decode_image).map(
-        tf_input_image_processing
-    )
+    val_image_dataset = val_image_dataset.map(
+        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+    ).map(tf_main_image_preprocessing_sequence)
     val_label_dataset = tf.data.Dataset.list_files(
         val_label_folder + "/*", shuffle=True, seed=42
     )
-    val_label_dataset = val_label_dataset.map(decode_image).map(
-        tf_output_label_processing
-    )
+    val_label_dataset = val_label_dataset.map(
+        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+    ).map(tf_output_label_processing)
     val_dataset = (
         tf.data.Dataset.zip((val_image_dataset, val_label_dataset))
         .batch(val_batch_size, drop_remainder=True)
@@ -242,27 +178,6 @@ if __name__ == "__main__":
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
     val_samples = len(val_dataset) * val_batch_size
-
-    # 2.1 Training, Validation Generator ---------
-    # training_images_file_names = files_in_folder(training_image_folder)
-    # training_samples = len(training_images_file_names)
-    # training_sequence = UNetL4ConfigSequence(
-    #     image_file_names=training_images_file_names,
-    #     main_image_folder_name=training_image_folder,
-    #     output_label_folder_name=training_label_folder,
-    #     batch_size=training_batch_size,
-    #     shuffle=True,
-    # )
-
-    # val_images_file_names = files_in_folder(val_image_folder)
-    # val_samples = len(val_images_file_names)
-    # val_sequence = UNetL4ConfigSequence(
-    #     image_file_names=val_images_file_names,
-    #     main_image_folder_name=val_image_folder,
-    #     output_label_folder_name=val_label_folder,
-    #     batch_size=val_batch_size,
-    #     shuffle=False,
-    # )
 
     # 3. Training
     # -----------
