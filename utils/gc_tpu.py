@@ -20,3 +20,4 @@ def tpu_initialize(tpu_address: str):
     tf.tpu.experimental.initialize_tpu_system(resolver)
     print("All devices: ", tf.config.list_logical_devices("TPU"))
     return resolver
+
