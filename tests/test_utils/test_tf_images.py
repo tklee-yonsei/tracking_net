@@ -133,3 +133,59 @@ class TestTFImage(TestCase):
             )
         )
 
+    def test_tf_extract_patches(self):
+        sample_image = tf.constant(np.random.randint(10, size=(1, 5, 5, 1)))
+
+        self.assertTrue(
+            tf.math.reduce_all(
+                tf.image.extract_patches(
+                    sample_image,
+                    sizes=[1, 3, 3, 1],
+                    strides=[1, 1, 1, 1],
+                    rates=[1, 1, 1, 1],
+                    padding="SAME",
+                )
+                == tf_images.tf_extract_patches(sample_image, 3)
+            )
+        )
+
+        self.assertTrue(
+            tf.math.reduce_all(
+                tf.image.extract_patches(
+                    sample_image,
+                    sizes=[1, 5, 5, 1],
+                    strides=[1, 1, 1, 1],
+                    rates=[1, 1, 1, 1],
+                    padding="SAME",
+                )
+                == tf_images.tf_extract_patches(sample_image, 5)
+            )
+        )
+
+        sample_image2 = tf.constant(np.random.randint(10, size=(1, 32, 32, 1)))
+        self.assertTrue(
+            tf.math.reduce_all(
+                tf.image.extract_patches(
+                    sample_image2,
+                    sizes=[1, 5, 5, 1],
+                    strides=[1, 1, 1, 1],
+                    rates=[1, 1, 1, 1],
+                    padding="SAME",
+                )
+                == tf_images.tf_extract_patches(sample_image2, 5)
+            )
+        )
+
+        sample_image3 = tf.constant(np.random.randint(10, size=(2, 32, 32, 30)))
+        self.assertTrue(
+            tf.math.reduce_all(
+                tf.image.extract_patches(
+                    sample_image3,
+                    sizes=[1, 5, 5, 1],
+                    strides=[1, 1, 1, 1],
+                    rates=[1, 1, 1, 1],
+                    padding="SAME",
+                )
+                == tf_images.tf_extract_patches(sample_image3, 5)
+            )
+        )

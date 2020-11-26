@@ -23,7 +23,8 @@ def decode_png(filename: str, channels: int = 1):
     Examples
     --------
     >>> import tensorflow as tf
-    >>> sample_img = tf_images.decode_image("tests/test_resources/sample.png", 3)
+    >>> from utils import tf_images 
+    >>> sample_img = tf_images.decode_png("tests/test_resources/sample.png", 3)
     >>> tf.shape(sample_img)
     tf.Tensor([180 180   3], shape=(3,), dtype=int32)
     """
@@ -47,6 +48,7 @@ def save_img(tf_img, filename: str):
     
     Examples
     --------
+    >>> from utils import tf_images 
     >>> tf_img = ...
     >>> tf_images.save_img(tf_img, "file_name.png")
     """
@@ -76,8 +78,9 @@ def tf_img_to_minmax(
     Examples
     --------
     >>> import tensorflow as tf
+    >>> from utils import tf_images 
     >>> from tensorflow.python.ops import gen_array_ops
-    >>> grayscale_sample_img = tf_images.decode_image("tests/test_resources/sample.png", 1)
+    >>> grayscale_sample_img = tf_images.decode_png("tests/test_resources/sample.png", 1)
     >>> min_maxed_grayscale_tf_image = tf_images.tf_img_to_minmax(
     ...     grayscale_tf_image, 127, (0, 255)
     ... )
@@ -147,8 +150,9 @@ def tf_get_all_colors(tf_img):
     Examples
     --------
     >>> import tensorflow as tf
-    >>> sample_img = tf_images.decode_image("tests/test_resources/sample.png", 3)
-    >>> print(tf_get_all_colors(sample_img))
+    >>> from utils import tf_images 
+    >>> sample_img = tf_images.decode_png("tests/test_resources/sample.png", 3)
+    >>> print(tf_images.tf_get_all_colors(sample_img))
     tf.Tensor(
     [[245. 245. 245.]
      [ 71.  71.  71.]
@@ -195,7 +199,8 @@ def tf_shrink3D(data, rows: int, cols: int, channels: int):
 
     Examples
     --------
-    >>> import numpy as np
+    >>> import tensorflow as tf
+    >>> from utils import tf_images 
     >>> a = tf.constant(
     ...     np.array(
     ...         [
@@ -236,3 +241,53 @@ def tf_shrink3D(data, rows: int, cols: int, channels: int):
         axis=3,
     )
 
+
+def tf_extract_patches(tf_array, ksize):
+    """
+    Extract Patches from `tf_array`.
+
+    Other implementation of `tf.image.extract_patches`.
+
+    Conditions.
+        * Padding is "SAME".
+        * Stride is 1.
+        * Width and Height are equal.
+
+    Parameters
+    ----------
+    tf_array : `Tensor`
+        Tensor array to extract patches.
+    ksize : int
+        Should be odd integer.
+
+    Returns
+    -------
+    `Tensor`
+        Patch extracted `tf_array`
+    """
+    padding_size = max((ksize - 1), 0) // 2
+    zero_padded_image = tf.keras.layers.ZeroPadding2D((padding_size, padding_size))(
+        tf_array
+    )
+
+    batch_size = tf.shape(tf_array)[0]
+    img_wh = tf.shape(tf_array)[1]
+    channel = tf.shape(tf_array)[-1]
+
+    wh_indices = tf.range(ksize) + tf.range(img_wh)[:, tf.newaxis]
+
+    a0 = tf.reshape(
+        tf.repeat(tf.range(batch_size), img_wh * img_wh * ksize * ksize),
+        (batch_size * img_wh * img_wh, ksize * ksize),
+    )
+    a1 = tf.tile(
+        tf.repeat(tf.repeat(wh_indices, ksize, axis=1), img_wh, axis=0), (batch_size, 1)
+    )
+    a2 = tf.tile(tf.tile(wh_indices, (img_wh, ksize)), (batch_size, 1))
+
+    m = tf.stack([a0, a1, a2], axis=-1)
+    m2 = tf.reshape(m, (batch_size, img_wh, img_wh, ksize, ksize, 3))
+
+    gg = tf.gather_nd(zero_padded_image, m2, batch_dims=0)
+    gg2 = tf.reshape(gg, (batch_size, img_wh, img_wh, ksize * ksize * channel))
+    return gg2
