@@ -242,23 +242,33 @@ def tf_shrink3D(data, rows: int, cols: int, channels: int):
     )
 
 
-def tf_extract_patches(tf_array, ksize):
+def get_dynamic_size(_tensor):
+    return tf.where([True, True, True, True], tf.shape(_tensor), [0, 0, 0, 0])
+
+
+def tf_extract_patches(tf_array, ksize, img_wh, channel):
     """
     Extract Patches from `tf_array`.
 
     Other implementation of `tf.image.extract_patches`.
 
-    Conditions.
-        * Padding is "SAME".
-        * Stride is 1.
-        * Width and Height are equal.
+    Improved `tf_extract_patches`.
+
+    - Conditions.
+        - Padding is "SAME".
+        - Stride is 1.
+        - Width and Height are equal.
 
     Parameters
     ----------
     tf_array : `Tensor`
-        Tensor array to extract patches.
+        Tensor array to extract patches. Shape should be (batch, height, width, channel).
     ksize : int
         Should be odd integer.
+    img_wh : int
+        Width and Height of square image.
+    channel : int
+        Number of channels.
 
     Returns
     -------
@@ -269,25 +279,26 @@ def tf_extract_patches(tf_array, ksize):
     zero_padded_image = tf.keras.layers.ZeroPadding2D((padding_size, padding_size))(
         tf_array
     )
+    # zero_padded_image = tf.pad(
+    #     batch_image,
+    #     [[0, 0], [padding_size, padding_size], [padding_size, padding_size], [0, 0]],
+    # )
 
-    batch_size = tf.shape(tf_array)[0]
-    img_wh = tf.shape(tf_array)[1]
-    channel = tf.shape(tf_array)[-1]
+    b_size = get_dynamic_size(tf_array)
+    batch_size = b_size[0]
 
     wh_indices = tf.range(ksize) + tf.range(img_wh)[:, tf.newaxis]
 
-    a0 = tf.reshape(
-        tf.repeat(tf.range(batch_size), img_wh * img_wh * ksize * ksize),
-        (batch_size * img_wh * img_wh, ksize * ksize),
-    )
-    a1 = tf.tile(
-        tf.repeat(tf.repeat(wh_indices, ksize, axis=1), img_wh, axis=0), (batch_size, 1)
-    )
-    a2 = tf.tile(tf.tile(wh_indices, (img_wh, ksize)), (batch_size, 1))
+    a1 = tf.repeat(tf.repeat(wh_indices, ksize, axis=1), img_wh, axis=0)
+    a2 = tf.tile(wh_indices, (img_wh, ksize))
 
-    m = tf.stack([a0, a1, a2], axis=-1)
-    m2 = tf.reshape(m, (batch_size, img_wh, img_wh, ksize, ksize, 3))
+    m = tf.stack([a1, a2], axis=-1)
+    m = tf.expand_dims(m, axis=0)
 
-    gg = tf.gather_nd(zero_padded_image, m2, batch_dims=0)
-    gg2 = tf.reshape(gg, (batch_size, img_wh, img_wh, ksize * ksize * channel))
+    m1 = tf.repeat(m, batch_size, axis=0)
+    m2 = tf.reshape(m1, (-1, img_wh, img_wh, ksize, ksize, 2))
+
+    gg = tf.gather_nd(zero_padded_image, m2, batch_dims=1)
+    gg2 = tf.reshape(gg, (-1, img_wh, img_wh, ksize * ksize * channel))
+
     return gg2

@@ -134,18 +134,26 @@ class TestTFImage(TestCase):
         )
 
     def test_tf_extract_patches(self):
-        sample_image = tf.constant(np.random.randint(10, size=(1, 5, 5, 1)))
+        batch_size = 1
+        img_wh = 5
+        channel = 1
+        sample_image = tf.constant(
+            np.random.randint(10, size=(batch_size, img_wh, img_wh, channel))
+        )
+
+        ksize = 3
+        k_size2 = 5
 
         self.assertTrue(
             tf.math.reduce_all(
                 tf.image.extract_patches(
                     sample_image,
-                    sizes=[1, 3, 3, 1],
+                    sizes=[1, ksize, ksize, 1],
                     strides=[1, 1, 1, 1],
                     rates=[1, 1, 1, 1],
                     padding="SAME",
                 )
-                == tf_images.tf_extract_patches(sample_image, 3)
+                == tf_images.tf_extract_patches(sample_image, ksize, img_wh, channel)
             )
         )
 
@@ -153,39 +161,54 @@ class TestTFImage(TestCase):
             tf.math.reduce_all(
                 tf.image.extract_patches(
                     sample_image,
-                    sizes=[1, 5, 5, 1],
+                    sizes=[1, k_size2, k_size2, 1],
                     strides=[1, 1, 1, 1],
                     rates=[1, 1, 1, 1],
                     padding="SAME",
                 )
-                == tf_images.tf_extract_patches(sample_image, 5)
+                == tf_images.tf_extract_patches(sample_image, k_size2, img_wh, channel)
             )
         )
 
-        sample_image2 = tf.constant(np.random.randint(10, size=(1, 32, 32, 1)))
+        batch_size2 = 1
+        img_wh2 = 32
+        channel2 = 1
+        sample_image2 = tf.constant(
+            np.random.randint(10, size=(batch_size2, img_wh2, img_wh2, channel2))
+        )
         self.assertTrue(
             tf.math.reduce_all(
                 tf.image.extract_patches(
                     sample_image2,
-                    sizes=[1, 5, 5, 1],
+                    sizes=[1, k_size2, k_size2, 1],
                     strides=[1, 1, 1, 1],
                     rates=[1, 1, 1, 1],
                     padding="SAME",
                 )
-                == tf_images.tf_extract_patches(sample_image2, 5)
+                == tf_images.tf_extract_patches(
+                    sample_image2, k_size2, img_wh2, channel2
+                )
             )
         )
 
-        sample_image3 = tf.constant(np.random.randint(10, size=(2, 32, 32, 30)))
+        batch_size3 = 2
+        img_wh3 = 32
+        channel3 = 30
+        sample_image3 = tf.constant(
+            np.random.randint(10, size=(batch_size3, img_wh3, img_wh3, channel3))
+        )
         self.assertTrue(
             tf.math.reduce_all(
                 tf.image.extract_patches(
                     sample_image3,
-                    sizes=[1, 5, 5, 1],
+                    sizes=[1, k_size2, k_size2, 1],
                     strides=[1, 1, 1, 1],
                     rates=[1, 1, 1, 1],
                     padding="SAME",
                 )
-                == tf_images.tf_extract_patches(sample_image3, 5)
+                == tf_images.tf_extract_patches(
+                    sample_image3, k_size2, img_wh3, channel3
+                )
             )
         )
+
