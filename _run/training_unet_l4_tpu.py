@@ -18,8 +18,8 @@ from models.semantic_segmentation.unet_l4.config_004 import (
     tf_output_label_processing,
 )
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
-from utils.tf_images import decode_image
-from utils.tpu import tpu_initialize
+from utils.gc_tpu import tpu_initialize
+from utils.tf_images import decode_png
 
 if __name__ == "__main__":
     # Variables
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     variable_model_helper = UnetL4ModelHelper()
 
     # TPU & Storage Setting
-    gs_path = "gs://cell_tracking_dataset"
-    tpu_name = "tracking-1"
+    gs_path = "gs://cell_tracking_dataset-1"
+    tpu_name = "training-model-1"
 
     resolver = tpu_initialize(tpu_address=tpu_name)
     strategy = tf.distribute.TPUStrategy(resolver)
@@ -146,18 +146,18 @@ if __name__ == "__main__":
     )
 
     training_image_dataset = training_image_dataset.map(
-        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        decode_png, num_parallel_calls=tf.data.experimental.AUTOTUNE
     ).map(tf_main_image_preprocessing_sequence)
     training_label_dataset = tf.data.Dataset.list_files(
         training_label_folder + "/*", shuffle=True, seed=42
     )
     training_label_dataset = training_label_dataset.map(
-        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        decode_png, num_parallel_calls=tf.data.experimental.AUTOTUNE
     ).map(tf_output_label_processing)
 
     training_dataset = (
         tf.data.Dataset.zip((training_image_dataset, training_label_dataset))
-        .batch(val_batch_size, drop_remainder=True)
+        .batch(training_batch_size, drop_remainder=True)
         .cache()
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
@@ -167,13 +167,13 @@ if __name__ == "__main__":
         val_image_folder + "/*", shuffle=True, seed=42
     )
     val_image_dataset = val_image_dataset.map(
-        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        decode_png, num_parallel_calls=tf.data.experimental.AUTOTUNE
     ).map(tf_main_image_preprocessing_sequence)
     val_label_dataset = tf.data.Dataset.list_files(
         val_label_folder + "/*", shuffle=True, seed=42
     )
     val_label_dataset = val_label_dataset.map(
-        decode_image, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        decode_png, num_parallel_calls=tf.data.experimental.AUTOTUNE
     ).map(tf_output_label_processing)
     val_dataset = (
         tf.data.Dataset.zip((val_image_dataset, val_label_dataset))

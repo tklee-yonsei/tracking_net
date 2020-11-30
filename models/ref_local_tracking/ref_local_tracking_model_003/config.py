@@ -7,25 +7,23 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import toolz
-from image_keras.model_manager import LossDescriptor, ModelDescriptor, ModelHelper
+from image_keras.model_manager import (LossDescriptor, ModelDescriptor,
+                                       ModelHelper)
 from image_keras.utils.image_color_transform import (
-    color_map_generate,
-    image_detach_with_id_color_probability_list,
-)
+    color_map_generate, image_detach_with_id_color_probability_list)
 from image_keras.utils.image_info import get_all_colors
-from image_keras.utils.image_transform import (
-    InterpolationEnum,
-    gray_image_apply_clahe,
-    img_resize,
-    img_to_ratio,
-)
-from models.ref_local_tracking.ref_local_tracking_model_003.model import (
-    ref_local_tracking_model_003,
-)
+from image_keras.utils.image_transform import (InterpolationEnum,
+                                               gray_image_apply_clahe,
+                                               img_resize, img_to_ratio)
+from models.ref_local_tracking.ref_local_tracking_model_003.model import \
+    ref_local_tracking_model_003
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import CategoricalAccuracy, Metric
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, Optimizer
+from tensorflow.python.ops.image_ops_impl import ResizeMethod
+from utils.tf_images import (tf_equalize_histogram, tf_generate_color_map,
+                             tf_img_to_minmax, tf_shrink3D)
 
 bin_size: int = 30
 
@@ -98,6 +96,189 @@ def output_label_preprocessing_function(
     label: np.ndarray, ref_label: np.ndarray
 ) -> np.ndarray:
     ref_id_color_list = generate_color_map(ref_label, True, True)
+    return image_detach_with_id_color_probability_list(
+        label, ref_id_color_list, bin_size, 0
+    )
+
+
+def tf_image_detach_with_id_color_list(
+    color_img, id_color_list, bin_num: int, mask_value: float = 1.0
+):
+    """
+    컬러 이미지 `color_img`를 색상에 따른 각 인스턴스 객체로 분리합니다.
+
+
+    Parameters
+    ----------
+    color_img : np.ndarray
+        컬러 이미지
+    id_color_list : List[Tuple[int, Tuple[int, int, int]]]
+        ID, BGR 컬러 튜플의 리스트. `(0, 0, 0)`이 있는 경우, `(0, 0, 0)`이 맨 앞에 옵니다.
+    bin_num : int
+        분리할 최대 인스턴스 객체의 개수
+    mask_value : float
+        색상이 존재하는 이미지의 객체에 덮어 씌울 값, by default 1.
+
+    Returns
+    -------
+    np.ndarray
+        `color_img`의 width, height에 `bin_num` channel인 `np.ndarray`
+
+    """
+    color_img = tf.cast(color_img, tf.float32)
+    color_img = tf.expand_dims(color_img, axis=-2)
+    color_num = tf.shape(id_color_list[1])[0]
+    color_img = tf.broadcast_to(
+        color_img,
+        (
+            tf.shape(color_img)[-4],
+            tf.shape(color_img)[-3],
+            color_num,
+            tf.shape(color_img)[-1],
+        ),
+    )
+    color_list_broad = tf.broadcast_to(
+        id_color_list[1],
+        (
+            tf.shape(color_img)[-4],
+            tf.shape(color_img)[-3],
+            color_num,
+            tf.shape(color_img)[-1],
+        ),
+    )
+    r = tf.reduce_all(color_img == color_list_broad, axis=-1)
+    result = tf.cast(r, tf.float32)
+    result = tf.cond(
+        bin_num - color_num > 0,
+        lambda: tf.concat(
+            [
+                result,
+                tf.zeros(
+                    (
+                        tf.shape(color_img)[-4],
+                        tf.shape(color_img)[-3],
+                        bin_num - color_num,
+                    )
+                ),
+            ],
+            axis=-1,
+        ),
+        lambda: result,
+    )
+    return result
+    # result = tf.expand_dims(
+    #     tf.argmax(tf.reduce_all(color_img == color_list_broad, axis=-1), axis=-1),
+    #     axis=-1,
+    # )
+
+
+def tf_image_detach_with_id_color_probability_list(
+    color_img, id_color_list, bin_num: int, resize_by_power_of_two: int = 0,
+):
+    """
+    컬러 이미지 `color_img`를 색상에 따른 각 인스턴스 확률 객체로 분리합니다.
+
+    Parameters
+    ----------
+    color_img : np.ndarray
+        컬러 이미지
+    id_color_list : List[Tuple[int, Tuple[int, int, int]]]
+        ID, BGR 컬러 튜플의 리스트. `(0, 0, 0)`이 있는 경우, `(0, 0, 0)`이 맨 앞에 옵니다.
+    bin_num : int
+        분리할 최대 인스턴스 객체의 개수
+    resize_by_power_of_two : int
+        줄일 이미지의 사이즈. 2의 제곱값. 0이면 그대로.
+        예를 들어, 1이면, 1/2로 크기를 줄이고, 2이면, 1/4로 크기를 줄입니다. by default 0.
+
+    Returns
+    -------
+    np.ndarray
+        `color_img`의 width, height에 `bin_num` channel인 `np.ndarray`
+
+    Examples
+    --------
+    >>> import cv2
+    >>> test_img = cv2.imread("../../../Downloads/test.png")
+    >>> from utils import image_transform
+    >>> test_img_colors = image_transform.get_rgb_color_cv2(test_img, exclude_black=False)
+    >>> test_img_color_map = image_transform.color_map_generate(test_img_colors)
+    >>> detached_image = image_transform.image_detach_with_id_color_list(test_img, test_img_color_map, 30, 1)
+    >>> detached_probability_image_0 = image_transform.image_detach_with_id_color_probability_list(test_img, test_img_color_map, 30, 0)
+    >>> detached_probability_image_1 = image_transform.image_detach_with_id_color_probability_list(test_img, test_img_color_map, 30, 1)
+    >>> detached_probability_image_2 = image_transform.image_detach_with_id_color_probability_list(test_img, test_img_color_map, 30, 2)
+    >>> detached_probability_image_3 = image_transform.image_detach_with_id_color_probability_list(test_img, test_img_color_map, 30, 3)
+    """
+    result = tf_image_detach_with_id_color_list(color_img, id_color_list, bin_num, 1.0)
+    ratio = 2 ** resize_by_power_of_two
+
+    result2 = tf_shrink3D(
+        result, tf.shape(result)[-3] // ratio, tf.shape(result)[-2] // ratio, bin_num
+    )
+    result2 = tf.divide(result2, ratio ** 2)
+    return result2
+
+
+def tf_input_ref_label_1_preprocessing_function(label):
+    id_color_list = tf_generate_color_map(label)
+    result = tf_image_detach_with_id_color_probability_list(
+        label, id_color_list, bin_size, 3
+    )
+    result = tf.reshape(result, (256 // (2 ** 3), 256 // (2 ** 3), 30))
+    return result
+
+
+def tf_input_ref_label_2_preprocessing_function(label):
+    id_color_list = tf_generate_color_map(label)
+    return tf_image_detach_with_id_color_probability_list(
+        label, id_color_list, bin_size, 2
+    )
+
+
+def tf_input_ref_label_3_preprocessing_function(label):
+    id_color_list = tf_generate_color_map(label)
+    return tf_image_detach_with_id_color_probability_list(
+        label, id_color_list, bin_size, 1
+    )
+
+
+def tf_input_ref_label_4_preprocessing_function(label):
+    id_color_list = tf_generate_color_map(label)
+    result = tf_image_detach_with_id_color_probability_list(
+        label, id_color_list, bin_size, 0
+    )
+    result = tf.reshape(result, (256 // (2 ** 0), 256 // (2 ** 0), 30))
+    return result
+
+
+def tf_main_image_preprocessing_sequence(img):
+    img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
+    img = tf_equalize_histogram(img)
+    img = tf.cast(img, tf.float32)
+    img = tf.math.divide(img, 255.0)
+    img = tf.reshape(img, (256, 256, 1))
+    return img
+
+
+def tf_ref_image_preprocessing_sequence(img):
+    img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
+    img = tf_equalize_histogram(img)
+    img = tf.cast(img, tf.float32)
+    img = tf.math.divide(img, 255.0)
+    img = tf.reshape(img, (256, 256, 1))
+    return img
+
+
+def tf_output_label_processing(img):
+    img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
+    # img = tf_img_to_minmax(img, 127, (0, 255))
+    # img = tf.cast(img, tf.float32)
+    # img = tf.math.divide(img, 255.0)
+    # img = tf.reshape(img, (256, 256, 1))
+    return img
+
+
+def tf_output_label_preprocessing_function(label, ref_label):
+    ref_id_color_list = tf_generate_color_map(ref_label)
     return image_detach_with_id_color_probability_list(
         label, ref_id_color_list, bin_size, 0
     )
@@ -250,6 +431,7 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
             )
             if self.main_image_preprocessing_function is not None:
                 main_img = self.main_image_preprocessing_function(main_img)
+            main_img = main_img.astype(np.float32)
             batch_main_images.append(main_img)
 
             ref_img = cv2.imread(
@@ -258,6 +440,7 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
             )
             if self.ref_image_preprocessing_function is not None:
                 ref_img = self.ref_image_preprocessing_function(ref_img)
+            ref_img = ref_img.astype(np.float32)
             batch_ref_images.append(ref_img)
 
             ref_result_label = cv2.imread(
@@ -269,15 +452,19 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
                 )
 
             ref_result1 = self.ref_result1_preprocessing_function(ref_result_label)
+            ref_result1 = ref_result1.astype(np.float32)
             batch_ref1_results.append(ref_result1)
 
             ref_result2 = self.ref_result2_preprocessing_function(ref_result_label)
+            ref_result2 = ref_result2.astype(np.float32)
             batch_ref2_results.append(ref_result2)
 
             ref_result3 = self.ref_result3_preprocessing_function(ref_result_label)
+            ref_result3 = ref_result3.astype(np.float32)
             batch_ref3_results.append(ref_result3)
 
             ref_result4 = self.ref_result4_preprocessing_function(ref_result_label)
+            ref_result4 = ref_result4.astype(np.float32)
             batch_ref4_results.append(ref_result4)
 
             output_label = cv2.imread(
@@ -289,6 +476,7 @@ class RefTrackingSequence(tf.keras.utils.Sequence):
             output_label = self.output_label_compose_function(
                 output_label, ref_result_label,
             )
+            output_label = output_label.astype(np.float32)
             batch_output_labels.append(output_label)
 
         X = [
@@ -440,4 +628,3 @@ def single_generator(
             ref_result_3,
             ref_result_4,
         ]
-
