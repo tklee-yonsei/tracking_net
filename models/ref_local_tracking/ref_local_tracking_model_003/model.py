@@ -5,6 +5,7 @@ from layers.ref_local_layer2 import RefLocal2
 from models.gpu_check import check_first_gpu
 from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
 from tensorflow.keras.models import Model
+from tensorflow.python.keras.layers.pooling import MaxPooling2D
 
 check_first_gpu()
 
@@ -89,10 +90,12 @@ def ref_local_tracking_model_003(
     main_l4_1 = Conv2D(
         256, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(main_l4_1)
+
     ref_l4_1 = unet_l4_skip_1_model(ref_image_input)
     ref_l4_1 = Conv2D(
         256, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_1)
+
     ref_local_l4_1: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
         [main_l4_1, ref_l4_1, ref_label_1_input]
     )
@@ -103,10 +106,12 @@ def ref_local_tracking_model_003(
     main_l4_2 = Conv2D(
         128, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(main_l4_2)
+
     ref_l4_2 = unet_l4_skip_2_model(ref_image_input)
     ref_l4_2 = Conv2D(
         128, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_2)
+
     ref_local_l4_2: Layer = RefLocal2(mode="dot", k_size=5, bin_size=bin_num)(
         [main_l4_2, l4_up_1, ref_l4_2, ref_label_2_input]
     )
@@ -117,10 +122,12 @@ def ref_local_tracking_model_003(
     main_l4_3 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(main_l4_3)
+
     ref_l4_3 = unet_l4_skip_3_model(ref_image_input)
     ref_l4_3 = Conv2D(
         64, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_3)
+
     ref_local_l4_3: Layer = RefLocal2(mode="dot", k_size=5, bin_size=bin_num)(
         [main_l4_3, l4_up_2, ref_l4_3, ref_label_3_input]
     )
