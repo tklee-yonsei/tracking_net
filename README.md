@@ -10,7 +10,16 @@ A network that tracks each pixel or object in a sequential image, such as a vide
 * Keras &ge; 2.3.1
 * numpy &ge; 1.17.4
 
-## Prepare
+## Examples
+
+```python
+python _run/sample/semantic_segmentation/training_with_generator.py
+python _run/experiment_name.py
+```
+
+## With TPU
+
+### Prepare
 
 ```shell
 sudo apt-get install libsm6 libxrender1 libfontconfig1
@@ -18,12 +27,55 @@ sudo apt-get install graphviz
 pip3 install -r requirements.txt
 ```
 
-## Examples
+### Example
 
-```python
-python _run/sample/semantic_segmentation/training_with_generator.py
-python _run/experiment_name.py
+* Run TPU cluster before.
+
+```shell
+ctpu up --zone=us-central1-b \
+--tf-version=2.3.1 \
+--tpu-size=v3-8 \
+--name=leetaekyu-1-trainer \
+--preemptible \
+--tpu-only
 ```
+
+#### U-Net L4
+
+```shell
+python3 _run/training_unet_l4_tpu.py \
+--tpu_name "leetaekyu-1-trainer" \
+--run_id "leetaekyu_20210108_221742
+```
+
+#### Ref Local Tracking 003
+
+* Training everything from scratch.
+
+    ```shell
+    python3 _run/training_ref_local_tracking_003_tpu.py \
+    --tpu_name "leetaekyu-1-trainer" \
+    --run_id "leetaekyu_20210108_221742" \
+    ```
+
+* Use pre-trained U-Net backbone with fine tuning.
+
+    ```shell
+    python3 _run/training_ref_local_tracking_003_tpu.py \
+    --tpu_name "leetaekyu-1-trainer" \
+    --run_id "leetaekyu_20210108_221742" \
+    --pretrained_unet_path "gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974"
+    ```
+
+* Use pre-trained U-Net backbone and freeze U-Net weights.
+
+    ```shell
+    python3 _run/training_ref_local_tracking_003_tpu.py \
+    --tpu_name "leetaekyu-1-trainer" \
+    --run_id "leetaekyu_20210109_012720" \
+    --pretrained_unet_path "gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974" \
+    --freeze_unet_model
+    ```
 
 ## With docker
 
