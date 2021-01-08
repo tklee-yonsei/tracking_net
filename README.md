@@ -55,7 +55,7 @@ python3 _run/training_unet_l4_tpu.py \
     ```shell
     python3 _run/training_ref_local_tracking_003_tpu.py \
     --tpu_name "leetaekyu-1-trainer" \
-    --run_id "leetaekyu_20210108_221742" \
+    --run_id "leetaekyu_20210108_221742"
     ```
 
 * Use pre-trained U-Net backbone with fine tuning.
