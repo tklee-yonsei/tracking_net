@@ -2,12 +2,15 @@ from typing import Tuple
 
 from layers.ref_local_layer import RefLocal
 from layers.ref_local_layer2 import RefLocal2
-from models.gpu_check import check_first_gpu
-from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
+from tensorflow.keras.layers import (
+    Conv2D,
+    Conv2DTranspose,
+    Input,
+    Layer,
+    UpSampling2D,
+    concatenate,
+)
 from tensorflow.keras.models import Model
-from tensorflow.python.keras.layers.pooling import MaxPooling2D
-
-check_first_gpu()
 
 
 def ref_local_tracking_model_003(
@@ -27,7 +30,7 @@ def ref_local_tracking_model_003(
     output_name: str,
     bin_num: int = 30,
     alpha=1.0,
-    unet_trainable=False,
+    unet_trainable=True,
 ):
     filters: int = 16
 

@@ -2,15 +2,18 @@ from typing import Tuple
 
 from layers.ref_local_layer import RefLocal
 from layers.ref_local_layer2 import RefLocal2
-from models.gpu_check import check_first_gpu
-from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
+from tensorflow.keras.layers import (
+    Conv2D,
+    Conv2DTranspose,
+    Input,
+    Layer,
+    UpSampling2D,
+    concatenate,
+)
 from tensorflow.keras.models import Model
-from tensorflow.python.keras.layers.pooling import MaxPooling2D
-
-check_first_gpu()
 
 
-def ref_local_tracking_model_003(
+def ref_local_tracking_model_005_1(
     pre_trained_unet_l4_model: Model,
     input_main_image_name: str,
     input_main_image_shape: Tuple[int, int, int],
@@ -27,7 +30,7 @@ def ref_local_tracking_model_003(
     output_name: str,
     bin_num: int = 30,
     alpha=1.0,
-    unet_trainable=False,
+    unet_trainable=True,
 ):
     filters: int = 16
 
@@ -42,13 +45,13 @@ def ref_local_tracking_model_003(
         pre_trained_unet_l4_model.layers[8].name,
         pre_trained_unet_l4_model.layers[5].name,
         pre_trained_unet_l4_model.layers[2].name,
-        pre_trained_unet_l4_model.layers[27].name,
+        pre_trained_unet_l4_model.layers[29].name,
     ]
 
-    unet_l4_skip_1_model = Model(
-        inputs=pre_trained_unet_l4_model.input,
-        outputs=pre_trained_unet_l4_model.get_layer(skip_names[0]).output,
-    )
+    # unet_l4_skip_1_model = Model(
+    #     inputs=pre_trained_unet_l4_model.input,
+    #     outputs=pre_trained_unet_l4_model.get_layer(skip_names[0]).output,
+    # )
     unet_l4_skip_2_model = Model(
         inputs=pre_trained_unet_l4_model.input,
         outputs=pre_trained_unet_l4_model.get_layer(skip_names[1]).output,
@@ -87,21 +90,21 @@ def ref_local_tracking_model_003(
     )
 
     # First
-    main_l4_1 = unet_l4_skip_1_model(main_image_input)
-    main_l4_1 = Conv2D(
-        256, 1, activation="relu", padding="same", kernel_initializer="he_normal",
-    )(main_l4_1)
+    # main_l4_1 = unet_l4_skip_1_model(main_image_input)
+    # main_l4_1 = Conv2D(
+    #     256, 1, activation="relu", padding="same", kernel_initializer="he_normal",
+    # )(main_l4_1)
 
-    ref_l4_1 = unet_l4_skip_1_model(ref_image_input)
-    ref_l4_1 = Conv2D(
-        256, 1, activation="relu", padding="same", kernel_initializer="he_normal",
-    )(ref_l4_1)
+    # ref_l4_1 = unet_l4_skip_1_model(ref_image_input)
+    # ref_l4_1 = Conv2D(
+    #     256, 1, activation="relu", padding="same", kernel_initializer="he_normal",
+    # )(ref_l4_1)
 
-    ref_local_l4_1: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
-        [main_l4_1, ref_l4_1, ref_label_1_input]
-    )
+    # ref_local_l4_1: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
+    #     [main_l4_1, ref_l4_1, ref_label_1_input]
+    # )
     # Temp added layers
-    l4_up_1 = UpSampling2D(interpolation="bilinear")(ref_local_l4_1)
+    # l4_up_1 = UpSampling2D(interpolation="bilinear")(ref_local_l4_1)
     # l4_up_1 = Conv2DTranspose(30, 3, strides=2, padding="same", kernel_initializer="he_normal")(ref_local_l4_1)
 
     # Second
@@ -115,8 +118,8 @@ def ref_local_tracking_model_003(
         128, 1, activation="relu", padding="same", kernel_initializer="he_normal",
     )(ref_l4_2)
 
-    ref_local_l4_2: Layer = RefLocal2(mode="dot", k_size=5, bin_size=bin_num)(
-        [main_l4_2, l4_up_1, ref_l4_2, ref_label_2_input]
+    ref_local_l4_2: Layer = RefLocal(mode="dot", k_size=5, bin_size=bin_num)(
+        [main_l4_2, ref_l4_2, ref_label_2_input]
     )
     l4_up_2 = UpSampling2D(interpolation="bilinear")(ref_local_l4_2)
     # l4_up_2 = Conv2DTranspose(30, 3, strides=2, padding="same", kernel_initializer="he_normal")(l4_up_1)
@@ -147,14 +150,10 @@ def ref_local_tracking_model_003(
 
     # Merge
     main_l4_res = unet_l4_skip_result_model(main_image_input)
-    ref_l4_res = unet_l4_skip_result_model(ref_image_input)
-    merge_layer: Layer = concatenate([main_l4_res, ref_l4_res, ref_local_l4_4], axis=3)
+    merge_layer: Layer = concatenate([main_l4_res, ref_local_l4_4], axis=3)
 
     merge_layer = Conv2D(
-        128, 3, activation="relu", padding="same", kernel_initializer="he_normal",
-    )(merge_layer)
-    merge_layer = Conv2D(
-        128, 3, activation="relu", padding="same", kernel_initializer="he_normal",
+        30, 3, activation="relu", padding="same", kernel_initializer="he_normal",
     )(merge_layer)
 
     total_conv: Layer = Conv2D(

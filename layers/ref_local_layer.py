@@ -12,7 +12,10 @@ class RefLocal(Layer):
         self.mode = mode
 
     def build(self, input_shape):
+        self.custom_input_shape = input_shape
         self.custom_shape = input_shape[0]
+        self.batch_size = input_shape[0][0]
+        self.channels_size = input_shape[0][-1]
 
     def get_config(self):
         config = super(RefLocal, self).get_config()
