@@ -11,7 +11,7 @@ import tensorflow as tf
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
-from models.ref_local_tracking.backbone.unet_l4 import unet_l4
+from ref_local_tracking.models.backbone.unet_l4 import unet_l4
 from ref_local_tracking.processings.tf.preprocessing import (
     tf_main_image_preprocessing_sequence,
     tf_unet_output_label_processing,
