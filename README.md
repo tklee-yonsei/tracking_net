@@ -10,6 +10,14 @@ A network that tracks each pixel or object in a sequential image, such as a vide
 * Keras &ge; 2.3.1
 * numpy &ge; 1.17.4
 
+## Prepare
+
+```shell
+sudo apt-get install libsm6 libxrender1 libfontconfig1
+sudo apt-get install graphviz
+pip3 install -r requirements.txt
+```
+
 ## Examples
 
 ```python
