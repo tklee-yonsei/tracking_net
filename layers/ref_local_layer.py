@@ -1,7 +1,6 @@
 import tensorflow as tf
+from image_keras.tf.keras.layers.extract_patch_layer import ExtractPatchLayer
 from tensorflow.keras.layers import Layer
-
-from layers.extract_patch_layer2 import ExtractPatchLayer2
 
 
 class RefLocal(Layer):
@@ -34,8 +33,7 @@ class RefLocal(Layer):
         ref_value = inputs[2]
 
         main = tf.expand_dims(main, axis=-2)
-
-        ref_stacked = ExtractPatchLayer2(k_size=self.k_size)(ref)
+        ref_stacked = ExtractPatchLayer(k_size=self.k_size)(ref)
         ref_stacked = tf.reshape(
             ref_stacked,
             (
@@ -47,7 +45,7 @@ class RefLocal(Layer):
             ),
         )
 
-        ref_value_stacked = ExtractPatchLayer2(k_size=self.k_size)(ref_value)
+        ref_value_stacked = ExtractPatchLayer(k_size=self.k_size)(ref_value)
         ref_value_stacked = tf.reshape(
             ref_value_stacked,
             (
