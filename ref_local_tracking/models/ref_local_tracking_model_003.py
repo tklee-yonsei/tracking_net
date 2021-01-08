@@ -2,32 +2,35 @@ from typing import Tuple
 
 from layers.ref_local_layer import RefLocal
 from layers.ref_local_layer2 import RefLocal2
-from models.gpu_check import check_first_gpu
-from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
+from tensorflow.keras.layers import (
+    Conv2D,
+    Conv2DTranspose,
+    Input,
+    Layer,
+    UpSampling2D,
+    concatenate,
+)
 from tensorflow.keras.models import Model
-from tensorflow.python.keras.layers.pooling import MaxPooling2D
-
-check_first_gpu()
 
 
 def ref_local_tracking_model_003(
     pre_trained_unet_l4_model: Model,
-    input_main_image_name: str,
     input_main_image_shape: Tuple[int, int, int],
-    input_ref_image_name: str,
     input_ref_image_shape: Tuple[int, int, int],
-    input_ref_label_1_name: str,
     input_ref_label_1_shape: Tuple[int, int, int],
-    input_ref_label_2_name: str,
     input_ref_label_2_shape: Tuple[int, int, int],
-    input_ref_label_3_name: str,
     input_ref_label_3_shape: Tuple[int, int, int],
-    input_ref_label_4_name: str,
     input_ref_label_4_shape: Tuple[int, int, int],
-    output_name: str,
+    input_main_image_name: str = "main_image",
+    input_ref_image_name: str = "ref_image",
+    input_ref_label_1_name: str = "bin_label_1",
+    input_ref_label_2_name: str = "bin_label_2",
+    input_ref_label_3_name: str = "bin_label_3",
+    input_ref_label_4_name: str = "bin_label_4",
+    output_name: str = "output",
     bin_num: int = 30,
-    alpha=1.0,
-    unet_trainable=False,
+    alpha: float = 1.0,
+    unet_trainable: bool = True,
 ):
     filters: int = 16
 

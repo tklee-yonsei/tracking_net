@@ -4,6 +4,15 @@ from google.cloud import storage
 from tensorflow.python.lib.io import file_io
 
 
+def create_gcs_folder(bucket_name: str, path: str):
+    gcs_client = storage.Client()
+    bucket = gcs_client.get_bucket(bucket_name)
+    blob = bucket.blob(path)
+    blob.upload_from_string(
+        "", content_type="application/x-www-form-urlencoded;charset=UTF-8"
+    )
+
+
 def download_blob(bucket_name: str, source_blob_name: str, destination_file_name: str):
     """
     Downloads a blob from the bucket.

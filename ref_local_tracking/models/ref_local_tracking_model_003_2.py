@@ -2,15 +2,18 @@ from typing import Tuple
 
 from layers.ref_local_layer import RefLocal
 from layers.ref_local_layer2 import RefLocal2
-from models.gpu_check import check_first_gpu
-from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
+from tensorflow.keras.layers import (
+    Conv2D,
+    Conv2DTranspose,
+    Input,
+    Layer,
+    UpSampling2D,
+    concatenate,
+)
 from tensorflow.keras.models import Model
-from tensorflow.python.keras.layers.pooling import MaxPooling2D
-
-check_first_gpu()
 
 
-def ref_local_tracking_model_003(
+def ref_local_tracking_model_003_2(
     pre_trained_unet_l4_model: Model,
     input_main_image_name: str,
     input_main_image_shape: Tuple[int, int, int],
@@ -26,8 +29,8 @@ def ref_local_tracking_model_003(
     input_ref_label_4_shape: Tuple[int, int, int],
     output_name: str,
     bin_num: int = 30,
-    alpha=1.0,
-    unet_trainable=False,
+    alpha: float = 1.0,
+    unet_trainable: bool = True,
 ):
     filters: int = 16
 
@@ -145,18 +148,6 @@ def ref_local_tracking_model_003(
         [main_l4_4, l4_up_3, ref_l4_4, ref_label_4_input]
     )
 
-    # Merge
-    main_l4_res = unet_l4_skip_result_model(main_image_input)
-    ref_l4_res = unet_l4_skip_result_model(ref_image_input)
-    merge_layer: Layer = concatenate([main_l4_res, ref_l4_res, ref_local_l4_4], axis=3)
-
-    merge_layer = Conv2D(
-        128, 3, activation="relu", padding="same", kernel_initializer="he_normal",
-    )(merge_layer)
-    merge_layer = Conv2D(
-        128, 3, activation="relu", padding="same", kernel_initializer="he_normal",
-    )(merge_layer)
-
     total_conv: Layer = Conv2D(
         bin_num,
         1,
@@ -164,7 +155,7 @@ def ref_local_tracking_model_003(
         name=output_name,
         padding="same",
         kernel_initializer="he_normal",
-    )(merge_layer)
+    )(ref_local_l4_4)
 
     return Model(
         inputs=[
