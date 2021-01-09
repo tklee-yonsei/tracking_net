@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # 검증 배치 크기
     val_batch_size: int = 8
     # 트레이닝 에포크 수
-    training_num_of_epochs: int = 10
+    training_num_of_epochs: int = 200
     # 검증을 매번 `val_freq` 에포크마다
     val_freq: int = 1
     # 빈 크기
