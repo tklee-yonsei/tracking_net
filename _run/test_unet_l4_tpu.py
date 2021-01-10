@@ -69,6 +69,11 @@ if __name__ == "__main__":
         default="tracking_test",
         help="Test dataset folder in google bucket. ex) 'test_folder_name'",
     )
+    parser.add_argument(
+        "--without_tpu",
+        action="store_true",
+        help="With this option, TPU will not be used.",
+    )
     args = parser.parse_args()
 
     # 1-2) Get variables
@@ -81,14 +86,12 @@ if __name__ == "__main__":
     run_id = run_id.replace(" ", "_")
     test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
     model_weight_path: str = args.model_weight_path
+    without_tpu: bool = args.without_tpu
 
     # 2. Setup --------
     # tpu create
-    create_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
-
-    # 2-1) TPU & Storage setting
-    resolver = tpu_initialize(tpu_address=tpu_name)
-    strategy = tf.distribute.TPUStrategy(resolver)
+    if not without_tpu:
+        create_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
 
     # 2-2) Google bucket folder setting for dataset, tf_log, weights
     # data folder
@@ -112,14 +115,28 @@ if __name__ == "__main__":
     # run_log_dir: str = os.path.join(tf_log_folder, training_id)
 
     # 2-3) Setup results
-    print("# Information ---------------------------")
-    print("Test ID: {}".format(test_id))
-    print("Test Dataset: {}".format(test_dataset_folder))
-    print("Test Data Folder: {}/{}".format(base_data_folder, test_id))
-    print("-----------------------------------------")
+    info: str = """
+# Information ---------------------------
+Test ID: {}
+Test Dataset: {}
+Test Data Folder: {}/{}
+-----------------------------------------
+""".format(
+        test_id, test_dataset_folder, base_data_folder, test_id
+    )
+    print(info)
+    tmp_info = "/tmp/info.txt"
+    f = open(tmp_info, "w")
+    f.write(info)
+    f.close()
+    upload_blob(
+        bucket_name,
+        tmp_info,
+        os.path.join("data", test_id, os.path.basename(tmp_info)),
+    )
 
     # 3. Model compile --------
-    with strategy.scope():
+    def get_model():
         model = tf.keras.models.load_model(
             model_weight_path,
             custom_objects={"binary_class_mean_iou": binary_class_mean_iou},
@@ -144,6 +161,17 @@ if __name__ == "__main__":
             os.path.join("data", test_id, os.path.basename(tmp_plot_model_img_path)),
         )
         model.summary()
+        return model
+
+    if not without_tpu:
+        # 2-1) TPU & Storage setting
+        resolver = tpu_initialize(tpu_address=tpu_name)
+        strategy = tf.distribute.TPUStrategy(resolver)
+
+        with strategy.scope():
+            model = get_model()
+    else:
+        model = get_model()
 
     # 4. Dataset --------
     # 4-1) Test dataset
@@ -192,9 +220,26 @@ if __name__ == "__main__":
         test_dataset, workers=8, use_multiprocessing=True
     )
 
-    print("test_loss: {}".format(test_loss))
-    print("test_binary_class_mean_iou: {}".format(test_mean_iou))
-    print("test_acc: {}".format(test_acc))
+    result: str = """
+# Result ---------------------------
+Test Loss: {}
+Test Mean IOU: {}
+Test Accuracy: {}
+-----------------------------------------
+""".format(
+        test_loss, test_mean_iou, test_acc
+    )
+    print(result)
+    tmp_result = "/tmp/result.txt"
+    f = open(tmp_result, "w")
+    f.write(result)
+    f.close()
+    upload_blob(
+        bucket_name,
+        tmp_result,
+        os.path.join("data", test_id, os.path.basename(tmp_result)),
+    )
 
     # 6. TPU shutdown --------
-    delete_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
+    if not without_tpu:
+        delete_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
