@@ -6,14 +6,19 @@ sys.path.append(os.getcwd())
 from argparse import ArgumentParser
 
 import tensorflow as tf
-from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
 from ref_local_tracking.processings.tf.preprocessing import (
+    tf_color_to_random_map,
+    tf_input_ref_label_1_preprocessing_function,
+    tf_input_ref_label_2_preprocessing_function,
+    tf_input_ref_label_3_preprocessing_function,
+    tf_input_ref_label_4_preprocessing_function,
     tf_main_image_preprocessing_sequence,
+    tf_ref_image_preprocessing_sequence,
 )
-from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.metrics import BinaryAccuracy
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import CategoricalAccuracy
 from tensorflow.keras.optimizers import Adam
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
@@ -22,16 +27,31 @@ from utils.tf_images import decode_png
 
 from _run.run_common_tpu import create_tpu, delete_tpu
 
+
+def fill_bin(bin, bin_all_index, fill_empty_bin_with):
+    fill_empty_with = tf.repeat(
+        [fill_empty_bin_with], repeats=tf.shape(bin_all_index)[-1], axis=0
+    )
+    filled_bin = tf.concat([bin, [fill_empty_with]], axis=1)
+    filled_bin = filled_bin[:, : tf.shape(bin_all_index)[-1], :]
+    result = tf.squeeze(
+        tf.gather(filled_bin, tf.cast(bin_all_index, tf.int32), axis=1), axis=0
+    )
+    return result
+
+
 if __name__ == "__main__":
     # 1. Variables --------
     # 모델 이름
-    model_name: str = "unet_l4"
+    model_name: str = "ref_local_tracking_model_003"
     # 테스트 배치 크기
     predict_test_batch_size: int = 1
+    # 빈 크기
+    bin_size: int = 30
 
     # 1-1) Variables with Parser
     parser: ArgumentParser = ArgumentParser(
-        description="Arguments for U-Net Predictor on TPU"
+        description="Arguments for Ref Local Predictor on TPU"
     )
     parser.add_argument(
         "--model_weight_path",
@@ -106,6 +126,14 @@ if __name__ == "__main__":
     predict_main_image_folder: str = os.path.join(
         predict_dataset_folder, "framed_image", "zero"
     )
+    # input - ref image
+    predict_ref_image_folder: str = os.path.join(
+        predict_dataset_folder, "framed_image", "p1"
+    )
+    # input - ref result label
+    predict_ref_result_label_folder: str = os.path.join(
+        predict_dataset_folder, "framed_label", "p1"
+    )
 
     # 2-3) Setup results
     info: str = """
@@ -130,15 +158,12 @@ Predict Data Folder: {}/{}
 
     # 3. Model compile --------
     def get_model():
-        model = tf.keras.models.load_model(
-            model_weight_path,
-            custom_objects={"binary_class_mean_iou": binary_class_mean_iou},
-        )
+        model = tf.keras.models.load_model(model_weight_path)
         model.compile(
             optimizer=Adam(lr=1e-4),
-            loss=[BinaryCrossentropy()],
+            loss=[CategoricalCrossentropy()],
             loss_weights=[1.0],
-            metrics=[binary_class_mean_iou, BinaryAccuracy(name="accuracy")],
+            metrics=[CategoricalAccuracy(name="accuracy")],
         )
         tmp_plot_model_img_path = "/tmp/model.png"
         plot_model(
@@ -179,46 +204,93 @@ Predict Data Folder: {}/{}
     predict_main_image_file_names = tf.data.Dataset.list_files(
         predict_main_image_folder + "/*", shuffle=False
     ).map(spl)
+
     predict_dataset = (
         predict_main_image_file_names.map(
-            lambda fname: (s(predict_main_image_folder, fname), fname)
+            lambda fname: (
+                s(predict_main_image_folder, fname),
+                s(predict_ref_image_folder, fname),
+                s(predict_ref_result_label_folder, fname),
+                s(predict_ref_result_label_folder, fname),
+                s(predict_ref_result_label_folder, fname),
+                s(predict_ref_result_label_folder, fname),
+                fname,
+            )
         )
         .map(
-            lambda input_path_name, fname: (decode_png(input_path_name), fname),
+            lambda main_img, ref_img, ref_label_1, ref_label_2, ref_label_3, ref_label_4, fname: (
+                decode_png(main_img),
+                decode_png(ref_img),
+                decode_png(ref_label_1, 3),
+                decode_png(ref_label_2, 3),
+                decode_png(ref_label_3, 3),
+                decode_png(ref_label_4, 3),
+                fname,
+            ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_img, fname: (
-                tf_main_image_preprocessing_sequence(input_img),
+            lambda main_img, ref_img, ref_label_1, ref_label_2, ref_label_3, ref_label_4, fname: (
+                (main_img, ref_img, ref_label_1, ref_label_2, ref_label_3, ref_label_4),
+                tf_color_to_random_map(ref_label_4, ref_label_4, bin_size, 1),
+                fname,
+            ),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+        .map(
+            lambda input_imgs, color_info, fname: (
+                (
+                    tf_main_image_preprocessing_sequence(input_imgs[0]),
+                    tf_ref_image_preprocessing_sequence(input_imgs[1]),
+                    tf_input_ref_label_1_preprocessing_function(
+                        input_imgs[2], color_info, bin_size
+                    ),
+                    tf_input_ref_label_2_preprocessing_function(
+                        input_imgs[3], color_info, bin_size
+                    ),
+                    tf_input_ref_label_3_preprocessing_function(
+                        input_imgs[4], color_info, bin_size
+                    ),
+                    tf_input_ref_label_4_preprocessing_function(
+                        input_imgs[5], color_info, bin_size
+                    ),
+                ),
+                color_info,
                 fname,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
     )
-    predict_dataset = (
-        predict_dataset.batch(predict_test_batch_size, drop_remainder=True)
-        .cache()
-        .prefetch(tf.data.experimental.AUTOTUNE)
-    )
+
+    predict_dataset = predict_dataset.batch(
+        predict_test_batch_size, drop_remainder=True
+    ).prefetch(tf.data.experimental.AUTOTUNE)
     predict_samples = len(predict_dataset) * predict_test_batch_size
 
     # 5. Predict --------
     for predict_data in predict_dataset:
-        predicted_batch_image = model.predict(
+        predicted = model.predict(
             predict_data[0],
             batch_size=predict_test_batch_size,
             verbose=1,
             max_queue_size=1,
         )
-        for predicted_image in predicted_batch_image:
-            print(s(predict_result_folder, predict_data[1])[0])
-            predicted_image = 255 * predicted_image
-            encoded_predicted_image = tf.image.encode_png(
-                tf.cast(predicted_image, tf.uint8)
-            )
-            tf.io.write_file(
-                s(predict_result_folder, predict_data[1])[0], encoded_predicted_image
-            )
+        filled_bins = fill_bin(
+            predict_data[1][1],
+            bin_all_index=predict_data[1][0],
+            fill_empty_bin_with=[255.0, 255.0, 255.0],
+        )
+        predicted_result = tf.squeeze(
+            tf.gather(filled_bins, tf.argmax(predicted, axis=-1), axis=1)
+        )
+
+        print(s(predict_result_folder, predict_data[2])[0])
+        encoded_predicted_image = tf.image.encode_png(
+            tf.cast(predicted_result, tf.uint8)
+        )
+        tf.io.write_file(
+            s(predict_result_folder, predict_data[2])[0], encoded_predicted_image
+        )
 
     # 6. TPU shutdown --------
     if not without_tpu:
