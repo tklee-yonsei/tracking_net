@@ -165,13 +165,32 @@ if __name__ == "__main__":
     run_log_dir: str = os.path.join(tf_log_folder, training_id)
 
     # 2-3) Setup results
-    print("# Information ---------------------------")
-    print("Training ID: {}".format(training_id))
-    print("Training Dataset: {}".format(training_dataset_folder))
-    print("Validation Dataset: {}".format(val_dataset_folder))
-    print("Tensorboard Log Folder: {}".format(run_log_dir))
-    print("Training Data Folder: {}/{}".format(base_data_folder, training_id))
-    print("-----------------------------------------")
+    info: str = """
+# Information ---------------------------
+Training ID: {}
+Training Dataset: {}
+Validation Dataset: {}
+Tensorboard Log Folder: {}
+Training Data Folder: {}/{}
+-----------------------------------------
+""".format(
+        training_id,
+        training_dataset_folder,
+        val_dataset_folder,
+        run_log_dir,
+        base_data_folder,
+        training_id,
+    )
+    print(info)
+    tmp_info = "/tmp/info.txt"
+    f = open(tmp_info, "w")
+    f.write(info)
+    f.close()
+    upload_blob(
+        bucket_name,
+        tmp_info,
+        os.path.join("data", training_id, os.path.basename(tmp_info)),
+    )
 
     # 3. Model compile --------
     with strategy.scope():
