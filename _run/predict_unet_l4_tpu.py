@@ -28,17 +28,17 @@ if __name__ == "__main__":
     # 모델 이름
     model_name: str = "unet_l4"
     # 테스트 배치 크기
-    test_batch_size: int = 8
+    predict_test_batch_size: int = 1
 
     # 1-1) Variables with Parser
     parser: ArgumentParser = ArgumentParser(
-        description="Arguments for U-Net Tester on TPU"
+        description="Arguments for U-Net Predictor on TPU"
     )
     parser.add_argument(
         "--model_weight_path",
         required=True,
         type=str,
-        help="Model to be tested. Full path of TF model which is accessable on cloud bucket. ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
+        help="Model to be predicted. Full path of TF model which is accessable on cloud bucket. ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
     )
     parser.add_argument(
         "--run_id",
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         help="Google Storage bucket name. ex) 'gs://bucket_name'",
     )
     parser.add_argument(
-        "--test_dataset_folder",
+        "--predict_dataset_folder",
         type=str,
         default="tracking_test",
         help="Test dataset folder in google bucket. ex) 'test_folder_name'",
@@ -81,10 +81,10 @@ if __name__ == "__main__":
     ctpu_zone: str = args.ctpu_zone
     bucket_name: str = args.gs_bucket_name.replace("gs://", "")
     gs_path: str = args.gs_bucket_name
-    var_test_dataset_folder: str = args.test_dataset_folder
+    var_predict_dataset_folder: str = args.predict_dataset_folder
     run_id: str = args.run_id or get_run_id()
     run_id = run_id.replace(" ", "_")
-    test_id: str = "_test__model_{}__run_{}".format(model_name, run_id)
+    predict_id: str = "_predict__model_{}__run_{}".format(model_name, run_id)
     model_weight_path: str = args.model_weight_path
     without_tpu: bool = args.without_tpu
 
@@ -96,29 +96,31 @@ if __name__ == "__main__":
     # 2-2) Google bucket folder setting for dataset, tf_log, weights
     # data folder
     base_data_folder: str = os.path.join(gs_path, "data")
-    test_result_folder: str = os.path.join(base_data_folder, test_id)
+    predict_result_folder: str = os.path.join(base_data_folder, predict_id, "images")
 
     # dataset folder
     base_dataset_folder: str = os.path.join(gs_path, "dataset")
-    test_dataset_folder: str = os.path.join(
-        base_dataset_folder, var_test_dataset_folder
+    predict_dataset_folder: str = os.path.join(
+        base_dataset_folder, var_predict_dataset_folder
     )
     # input - main image
-    test_main_image_folder: str = os.path.join(
-        test_dataset_folder, "framed_image", "zero"
+    predict_main_image_folder: str = os.path.join(
+        predict_dataset_folder, "framed_image", "zero"
     )
     # output - main label
-    test_output_main_label_folder: str = os.path.join(test_dataset_folder, "bw_label")
+    predict_output_main_label_folder: str = os.path.join(
+        predict_dataset_folder, "bw_label"
+    )
 
     # 2-3) Setup results
     info: str = """
 # Information ---------------------------
-Test ID: {}
-Test Dataset: {}
-Test Data Folder: {}/{}
+Predict ID: {}
+Predict Dataset: {}
+Predict Data Folder: {}/{}
 -----------------------------------------
 """.format(
-        test_id, test_dataset_folder, base_data_folder, test_id
+        predict_id, predict_dataset_folder, base_data_folder, predict_id
     )
     print(info)
     tmp_info = "/tmp/info.txt"
@@ -128,7 +130,7 @@ Test Data Folder: {}/{}
     upload_blob(
         bucket_name,
         tmp_info,
-        os.path.join("data", test_id, os.path.basename(tmp_info)),
+        os.path.join("data", predict_id, os.path.basename(tmp_info)),
     )
 
     # 3. Model compile --------
@@ -154,7 +156,7 @@ Test Data Folder: {}/{}
         upload_blob(
             bucket_name,
             tmp_plot_model_img_path,
-            os.path.join("data", test_id, os.path.basename(tmp_plot_model_img_path)),
+            os.path.join("data", predict_id, os.path.basename(tmp_plot_model_img_path)),
         )
         model.summary()
         return model
@@ -170,7 +172,7 @@ Test Data Folder: {}/{}
         model = get_model()
 
     # 4. Dataset --------
-    # 4-1) Test dataset
+    # 4-1) Predict dataset
     @tf.autograph.experimental.do_not_convert
     def spl(name):
         return tf.strings.split(name, sep="/")[-1]
@@ -179,62 +181,49 @@ Test Data Folder: {}/{}
     def s(a, b):
         return a + "/" + b
 
-    test_main_image_file_names = tf.data.Dataset.list_files(
-        test_main_image_folder + "/*", shuffle=False
+    predict_main_image_file_names = tf.data.Dataset.list_files(
+        predict_main_image_folder + "/*", shuffle=False
     ).map(spl)
-    test_dataset = (
-        test_main_image_file_names.map(
-            lambda fname: (
-                s(test_main_image_folder, fname),
-                test_output_main_label_folder + "/" + fname,
-            )
+    predict_dataset = (
+        predict_main_image_file_names.map(
+            lambda fname: (s(predict_main_image_folder, fname), fname)
         )
         .map(
-            lambda input_path_name, output_label_fname: (
-                decode_png(input_path_name),
-                decode_png(output_label_fname),
-            ),
+            lambda input_path_name, fname: (decode_png(input_path_name), fname),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_img, output_label: (
+            lambda input_img, fname: (
                 tf_main_image_preprocessing_sequence(input_img),
-                tf_unet_output_label_processing(output_label),
+                fname,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
     )
-    test_dataset = (
-        test_dataset.batch(test_batch_size, drop_remainder=True)
+    predict_dataset = (
+        predict_dataset.batch(predict_test_batch_size, drop_remainder=True)
         .cache()
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
-    test_samples = len(test_dataset) * test_batch_size
+    predict_samples = len(predict_dataset) * predict_test_batch_size
 
-    # 5. Test --------
-    test_loss, test_mean_iou, test_acc = model.evaluate(
-        test_dataset, workers=8, use_multiprocessing=True
-    )
-
-    result: str = """
-# Result ---------------------------
-Test Loss: {}
-Test Mean IOU: {}
-Test Accuracy: {}
------------------------------------------
-""".format(
-        test_loss, test_mean_iou, test_acc
-    )
-    print(result)
-    tmp_result = "/tmp/result.txt"
-    f = open(tmp_result, "w")
-    f.write(result)
-    f.close()
-    upload_blob(
-        bucket_name,
-        tmp_result,
-        os.path.join("data", test_id, os.path.basename(tmp_result)),
-    )
+    # 5. Predict --------
+    for predict_data in predict_dataset:
+        predicted_batch_image = model.predict(
+            predict_data[0],
+            batch_size=predict_test_batch_size,
+            verbose=1,
+            max_queue_size=1,
+        )
+        for predicted_image in predicted_batch_image:
+            print(s(predict_result_folder, predict_data[1])[0])
+            predicted_image = 255 * predicted_image
+            encoded_predicted_image = tf.image.encode_png(
+                tf.cast(predicted_image, tf.uint8)
+            )
+            tf.io.write_file(
+                s(predict_result_folder, predict_data[1])[0], encoded_predicted_image
+            )
 
     # 6. TPU shutdown --------
     if not without_tpu:

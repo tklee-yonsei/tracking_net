@@ -192,7 +192,7 @@ Test Data Folder: {}/{}
         return a + "/" + b
 
     test_main_image_file_names = tf.data.Dataset.list_files(
-        test_main_image_folder + "/*", shuffle=True, seed=42
+        test_main_image_folder + "/*", shuffle=False
     ).map(spl)
     test_dataset = (
         test_main_image_file_names.map(
