@@ -6,15 +6,20 @@ sys.path.append(os.getcwd())
 from argparse import ArgumentParser
 
 import tensorflow as tf
-from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
 from ref_local_tracking.processings.tf.preprocessing import (
+    tf_color_to_random_map,
+    tf_input_ref_label_1_preprocessing_function,
+    tf_input_ref_label_2_preprocessing_function,
+    tf_input_ref_label_3_preprocessing_function,
+    tf_input_ref_label_4_preprocessing_function,
     tf_main_image_preprocessing_sequence,
-    tf_unet_output_label_processing,
+    tf_output_label_processing,
+    tf_ref_image_preprocessing_sequence,
 )
-from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.metrics import BinaryAccuracy
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import CategoricalAccuracy
 from tensorflow.keras.optimizers import Adam
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
@@ -26,13 +31,15 @@ from _run.run_common_tpu import create_tpu, delete_tpu
 if __name__ == "__main__":
     # 1. Variables --------
     # 모델 이름
-    model_name: str = "unet_l4"
+    model_name: str = "ref_local_tracking_model_003"
     # 테스트 배치 크기
     test_batch_size: int = 8
+    # 빈 크기
+    bin_size: int = 30
 
     # 1-1) Variables with Parser
     parser: ArgumentParser = ArgumentParser(
-        description="Arguments for U-Net Tester on TPU"
+        description="Arguments for Ref Local Tester on TPU"
     )
     parser.add_argument(
         "--model_weight_path",
@@ -107,8 +114,16 @@ if __name__ == "__main__":
     test_main_image_folder: str = os.path.join(
         test_dataset_folder, "framed_image", "zero"
     )
+    # input - ref image
+    test_ref_image_folder: str = os.path.join(test_dataset_folder, "framed_image", "p1")
+    # input - ref result label
+    test_ref_result_label_folder: str = os.path.join(
+        test_dataset_folder, "framed_label", "p1"
+    )
     # output - main label
-    test_output_main_label_folder: str = os.path.join(test_dataset_folder, "bw_label")
+    test_output_main_label_folder: str = os.path.join(
+        test_dataset_folder, "framed_label", "zero"
+    )
 
     # 2-3) Setup results
     info: str = """
@@ -133,15 +148,12 @@ Test Data Folder: {}/{}
 
     # 3. Model compile --------
     def get_model():
-        model = tf.keras.models.load_model(
-            model_weight_path,
-            custom_objects={"binary_class_mean_iou": binary_class_mean_iou},
-        )
+        model = tf.keras.models.load_model(model_weight_path)
         model.compile(
             optimizer=Adam(lr=1e-4),
-            loss=[BinaryCrossentropy()],
+            loss=[CategoricalCrossentropy()],
             loss_weights=[1.0],
-            metrics=[binary_class_mean_iou, BinaryAccuracy(name="accuracy")],
+            metrics=[CategoricalAccuracy(name="accuracy")],
         )
         tmp_plot_model_img_path = "/tmp/model.png"
         plot_model(
@@ -185,21 +197,58 @@ Test Data Folder: {}/{}
     test_dataset = (
         test_main_image_file_names.map(
             lambda fname: (
-                s(test_main_image_folder, fname),
-                test_output_main_label_folder + "/" + fname,
+                (
+                    s(test_main_image_folder, fname),
+                    s(test_ref_image_folder, fname),
+                    s(test_ref_result_label_folder, fname),
+                    s(test_ref_result_label_folder, fname),
+                    s(test_ref_result_label_folder, fname),
+                    s(test_ref_result_label_folder, fname),
+                ),
+                (test_output_main_label_folder + "/" + fname),
             )
         )
         .map(
-            lambda input_path_name, output_label_fname: (
-                decode_png(input_path_name),
-                decode_png(output_label_fname),
+            lambda input_path_names, output_label_fname: (
+                (
+                    decode_png(input_path_names[0]),
+                    decode_png(input_path_names[1]),
+                    decode_png(input_path_names[2], 3),
+                    decode_png(input_path_names[3], 3),
+                    decode_png(input_path_names[4], 3),
+                    decode_png(input_path_names[5], 3),
+                ),
+                (decode_png(output_label_fname, 3)),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_img, output_label: (
-                tf_main_image_preprocessing_sequence(input_img),
-                tf_unet_output_label_processing(output_label),
+            lambda input_imgs, output_label: (
+                input_imgs,
+                tf_color_to_random_map(input_imgs[5], output_label[0], bin_size, 1),
+                output_label,
+            ),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+        .map(
+            lambda input_imgs, color_info, output_label: (
+                (
+                    tf_main_image_preprocessing_sequence(input_imgs[0]),
+                    tf_ref_image_preprocessing_sequence(input_imgs[1]),
+                    tf_input_ref_label_1_preprocessing_function(
+                        input_imgs[2], color_info, bin_size
+                    ),
+                    tf_input_ref_label_2_preprocessing_function(
+                        input_imgs[3], color_info, bin_size
+                    ),
+                    tf_input_ref_label_3_preprocessing_function(
+                        input_imgs[4], color_info, bin_size
+                    ),
+                    tf_input_ref_label_4_preprocessing_function(
+                        input_imgs[5], color_info, bin_size
+                    ),
+                ),
+                (tf_output_label_processing(output_label, color_info, bin_size)),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
@@ -219,11 +268,10 @@ Test Data Folder: {}/{}
     result: str = """
 # Result ---------------------------
 Test Loss: {}
-Test Mean IOU: {}
 Test Accuracy: {}
 -----------------------------------------
 """.format(
-        test_loss, test_mean_iou, test_acc
+        test_loss, test_acc
     )
     print(result)
     tmp_result = "/tmp/result.txt"

@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # 1-1) Variables with Parser
     parser: ArgumentParser = ArgumentParser(
-        description="Arguments for U-Net Trainer on TPU"
+        description="Arguments for Ref Local Trainer on TPU"
     )
     parser.add_argument(
         "--continuous_model_name",
