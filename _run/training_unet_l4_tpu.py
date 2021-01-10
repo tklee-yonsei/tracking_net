@@ -3,7 +3,6 @@ import sys
 
 sys.path.append(os.getcwd())
 
-import subprocess
 from argparse import ArgumentParser
 from typing import List, Optional
 
@@ -25,6 +24,13 @@ from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
 from utils.run_setting import get_run_id
 from utils.tf_images import decode_png
+
+from _run.run_common_tpu import (
+    check_all_exists_or_not,
+    create_tpu,
+    delete_tpu,
+    setup_continuous_training,
+)
 
 if __name__ == "__main__":
     # 1. Variables --------
@@ -105,41 +111,18 @@ if __name__ == "__main__":
     continuous_model_name: Optional[str] = args.continuous_model_name
     continuous_epoch: Optional[int] = args.continuous_epoch
     # continuous parameter check
-    if any([continuous_model_name, continuous_epoch]) and not all(
-        [continuous_model_name, continuous_epoch]
-    ):
+    if not check_all_exists_or_not([continuous_model_name, continuous_epoch]):
         raise RuntimeError(
             "`continuous_model_name` and `continuous_epoch` should both exists or not."
         )
-    # continue setting (tf log)
-    # extract `continuous_run_id` from `continuous_model_name`
-    if continuous_model_name is not None:
-        continuous_run_id: str = os.path.basename(continuous_model_name)
-        if continuous_run_id.find(".") != -1:
-            continuous_run_id = continuous_run_id[: continuous_run_id.find(".")]
-        training_id = "_" + continuous_run_id
+    training_id = (
+        setup_continuous_training(continuous_model_name, continuous_epoch)
+        or training_id
+    )
 
     # 2. Setup --------
     # tpu create
-    subprocess.run(
-        [
-            "gcloud",
-            "compute",
-            "tpus",
-            "create",
-            tpu_name,
-            "--zone",
-            ctpu_zone,
-            "--range",
-            "10.240.0.0/29",
-            "--accelerator-type",
-            "v3-8",
-            "--version",
-            "2.3.1",
-            "--preemptible",
-            "--quiet",
-        ]
-    )
+    create_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
 
     # 2-1) TPU & Storage setting
     resolver = tpu_initialize(tpu_address=tpu_name)
@@ -352,15 +335,4 @@ if __name__ == "__main__":
     )
 
     # 6. TPU shutdown --------
-    subprocess.run(
-        [
-            "gcloud",
-            "compute",
-            "tpus",
-            "delete",
-            tpu_name,
-            "--zone",
-            ctpu_zone,
-            "--quiet",
-        ]
-    )
+    delete_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
