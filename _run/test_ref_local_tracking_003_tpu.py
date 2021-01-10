@@ -261,7 +261,7 @@ Test Data Folder: {}/{}
     test_samples = len(test_dataset) * test_batch_size
 
     # 5. Test --------
-    test_loss, test_mean_iou, test_acc = model.evaluate(
+    test_loss, test_acc = model.evaluate(
         test_dataset, workers=8, use_multiprocessing=True
     )
 
