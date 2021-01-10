@@ -55,6 +55,16 @@ if __name__ == "__main__":
         description="Arguments for U-Net Trainer on TPU"
     )
     parser.add_argument(
+        "--continuous_model_name",
+        type=str,
+        help="Training will be continue for this `model`. Full path of TF model which is accessable on cloud bucket. ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
+    )
+    parser.add_argument(
+        "--continuous_epoch",
+        type=int,
+        help="Training will be continue from this `epoch`. If model trained during 12 epochs, this will be 12. ex) 12",
+    )
+    parser.add_argument(
         "--run_id",
         type=str,
         help="(Without space) Run with custom id. Be careful not to use duplicate IDs. If not specified, time is used as ID. ex) 'leetaekyu_210108_185302'",
@@ -114,7 +124,46 @@ if __name__ == "__main__":
     pretrained_unet_path: Optional[str] = args.pretrained_unet_path
     freeze_unet_model: bool = args.freeze_unet_model
 
+    # 1-3) continuous
+    continuous_model_name: Optional[str] = args.continuous_model_name
+    continuous_epoch: Optional[int] = args.continuous_epoch
+    # continuous parameter check
+    if any([continuous_model_name, continuous_epoch]) and not all(
+        [continuous_model_name, continuous_epoch]
+    ):
+        raise RuntimeError(
+            "`continuous_model_name` and `continuous_epoch` should both exists or not."
+        )
+    # continue setting (tf log)
+    # extract `continuous_run_id` from `continuous_model_name`
+    if continuous_model_name is not None:
+        continuous_run_id: str = os.path.basename(continuous_model_name)
+        if continuous_run_id.find(".") != -1:
+            continuous_run_id = continuous_run_id[: continuous_run_id.find(".")]
+        training_id = "_" + continuous_run_id
+
     # 2. Setup --------
+    # tpu create
+    subprocess.run(
+        [
+            "gcloud",
+            "compute",
+            "tpus",
+            "create",
+            tpu_name,
+            "--zone",
+            ctpu_zone,
+            "--range",
+            "10.240.0.0/29",
+            "--accelerator-type",
+            "v3-8",
+            "--version",
+            "2.3.1",
+            "--preemptible",
+            "--quiet",
+        ]
+    )
+
     # 2-1) TPU & Storage setting
     resolver = tpu_initialize(tpu_address=tpu_name)
     strategy = tf.distribute.TPUStrategy(resolver)
@@ -199,6 +248,10 @@ if __name__ == "__main__":
             bin_num=30,
             unet_trainable=(not freeze_unet_model),
         )
+
+        # continue setting (weights)
+        if continuous_model_name is not None:
+            model = tf.keras.models.load_model(continuous_model_name)
 
         model.compile(
             optimizer=Adam(lr=1e-4),
@@ -377,7 +430,6 @@ if __name__ == "__main__":
     training_steps_per_epoch: int = training_samples // training_batch_size
     val_steps: int = val_samples // val_batch_size
 
-    early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
     val_metric = model.compiled_metrics._metrics[-1].name
     val_checkpoint_metric = "val_" + val_metric
     model_checkpoint: Callback = ModelCheckpoint(
@@ -392,6 +444,7 @@ if __name__ == "__main__":
         ),
         verbose=1,
     )
+    early_stopping_patience: int = training_num_of_epochs // (10 * val_freq)
     early_stopping: Callback = EarlyStopping(
         patience=early_stopping_patience, verbose=1
     )
@@ -404,8 +457,8 @@ if __name__ == "__main__":
 
     # continue setting (initial epoch)
     initial_epoch = 0
-    # if continue_initial_epoch is not None:
-    #     initial_epoch = continue_initial_epoch
+    if continuous_model_name is not None:
+        initial_epoch = continuous_epoch
 
     # 5-2) Training
     history: History = model.fit(
@@ -425,7 +478,7 @@ if __name__ == "__main__":
     )
 
     # 6. TPU shutdown --------
-    subprocess.Popen(
+    subprocess.run(
         [
             "gcloud",
             "compute",
