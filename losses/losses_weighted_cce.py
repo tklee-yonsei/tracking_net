@@ -10,7 +10,7 @@ class WeightedCrossentropy(LossFunctionWrapper):
         weights,
         from_logits=False,
         reduction=losses_utils.ReductionV2.AUTO,
-        name="binary_boundary_crossentropy",
+        name="weighted_categorical_crossentropy",
     ):
         super(WeightedCrossentropy, self).__init__(
             weighted_crossentropy,

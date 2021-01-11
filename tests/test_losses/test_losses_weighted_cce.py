@@ -1,11 +1,8 @@
-from losses.losses_weighted_cce import weighted_crossentropy
-import os
 from unittest import TestCase
-from keras import backend as K
-import numpy as np
+
 import tensorflow as tf
-from tensorflow.python.ops import gen_array_ops
-from utils import tf_images
+from keras import backend as K
+from losses.losses_weighted_cce import weighted_crossentropy
 
 
 class TestWeightedCCE(TestCase):
