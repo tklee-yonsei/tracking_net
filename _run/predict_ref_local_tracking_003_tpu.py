@@ -124,7 +124,7 @@ if __name__ == "__main__":
     )
     # sample files
     predict_sample_file_folder: str = os.path.join(
-        predict_dataset_folder, "framed_sample", "zero"
+        predict_dataset_folder, "framed_sample"
     )
     # input - main image
     predict_main_image_folder: str = os.path.join(
