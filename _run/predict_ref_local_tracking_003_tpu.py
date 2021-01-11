@@ -57,36 +57,44 @@ if __name__ == "__main__":
         "--model_weight_path",
         required=True,
         type=str,
-        help="Model to be predicted. Full path of TF model which is accessable on cloud bucket. ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
+        help="Model to be predicted. \
+            Full path of TF model which is accessable on cloud bucket. \
+                ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
     )
     parser.add_argument(
         "--run_id",
         type=str,
-        help="(Without space) Run with custom id. Be careful not to use duplicate IDs. If not specified, time is used as ID. ex) 'leetaekyu_210108_185302'",
+        help="(Without space) Run with custom id. \
+            Be careful not to use duplicate IDs. If not specified, time is used as ID. \
+                ex) 'leetaekyu_210108_185302'",
     )
     parser.add_argument(
         "--ctpu_zone",
         type=str,
         default="us-central1-b",
-        help="VM, TPU zone. ex) 'us-central1-b'",
+        help="VM, TPU zone. \
+            ex) 'us-central1-b'",
     )
     parser.add_argument(
         "--tpu_name",
         type=str,
         required=True,
-        help="TPU name. ex) 'leetaekyu-1-trainer'",
+        help="TPU name. \
+            ex) 'leetaekyu-1-trainer'",
     )
     parser.add_argument(
         "--gs_bucket_name",
         type=str,
         default="gs://cell_dataset",
-        help="Google Storage bucket name. ex) 'gs://bucket_name'",
+        help="Google Storage bucket name. \
+            ex) 'gs://bucket_name'",
     )
     parser.add_argument(
         "--predict_dataset_folder",
         type=str,
         default="tracking_test",
-        help="Test dataset folder in google bucket. ex) 'test_folder_name'",
+        help="Test dataset folder in google bucket. \
+            ex) 'test_folder_name'",
     )
     parser.add_argument(
         "--without_tpu",

@@ -63,52 +63,64 @@ if __name__ == "__main__":
     parser.add_argument(
         "--continuous_model_name",
         type=str,
-        help="Training will be continue for this `model`. Full path of TF model which is accessable on cloud bucket. ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
+        help="Training will be continue for this `model`. \
+            Full path of TF model which is accessable on cloud bucket. \
+                ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
     )
     parser.add_argument(
         "--continuous_epoch",
         type=int,
-        help="Training will be continue from this `epoch`. If model trained during 12 epochs, this will be 12. ex) 12",
+        help="Training will be continue from this `epoch`. \
+            If model trained during 12 epochs, this will be 12. \
+                ex) 12",
     )
     parser.add_argument(
         "--run_id",
         type=str,
-        help="(Without space) Run with custom id. Be careful not to use duplicate IDs. If not specified, time is used as ID. ex) 'leetaekyu_210108_185302'",
+        help="(Without space) Run with custom id. \
+            Be careful not to use duplicate IDs. If not specified, time is used as ID. \
+                ex) 'leetaekyu_210108_185302'",
     )
     parser.add_argument(
         "--ctpu_zone",
         type=str,
         default="us-central1-b",
-        help="VM, TPU zone. ex) 'us-central1-b'",
+        help="VM, TPU zone. \
+            ex) 'us-central1-b'",
     )
     parser.add_argument(
         "--tpu_name",
         type=str,
         required=True,
-        help="TPU name. ex) 'leetaekyu-1-trainer'",
+        help="TPU name. \
+            ex) 'leetaekyu-1-trainer'",
     )
     parser.add_argument(
         "--gs_bucket_name",
         type=str,
         default="gs://cell_dataset",
-        help="Google Storage bucket name. ex) 'gs://bucket_name'",
+        help="Google Storage bucket name. \
+            ex) 'gs://bucket_name'",
     )
     parser.add_argument(
         "--training_dataset_folder",
         type=str,
         default="tracking_training",
-        help="Training dataset folder in google bucket. ex) 'training_folder_name'",
+        help="Training dataset folder in google bucket. \
+            ex) 'training_folder_name'",
     )
     parser.add_argument(
         "--validation_dataset_folder",
         type=str,
         default="tracking_validation",
-        help="Validation dataset folder in google bucket. ex) 'val_folder_name'",
+        help="Validation dataset folder in google bucket. \
+            ex) 'val_folder_name'",
     )
     parser.add_argument(
         "--pretrained_unet_path",
         type=str,
-        help="Pretrained U-Net L4 model in google bucket. It must contains 'gs://'. ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
+        help="Pretrained U-Net L4 model in google bucket. It must contains 'gs://'. \
+            ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
     )
     parser.add_argument(
         "--freeze_unet_model",
