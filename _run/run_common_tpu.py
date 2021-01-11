@@ -1,3 +1,4 @@
+import argparse
 import os
 import subprocess
 from typing import List, Optional, TypeVar
@@ -12,6 +13,14 @@ def check_both_exists_or_not(a: Optional[T1], b: Optional[T2]) -> bool:
 
 def check_all_exists_or_not(list: List[T1]) -> bool:
     return not (any(list) and not all(list))
+
+
+def loss_coords(s):
+    try:
+        x, y = s.split(",")
+        return (x, float(y))
+    except:
+        raise argparse.ArgumentTypeError("Coordinates must be x, y")
 
 
 def setup_continuous_training(
