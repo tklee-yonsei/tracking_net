@@ -7,9 +7,16 @@ from argparse import ArgumentParser
 from typing import List, Optional
 
 import tensorflow as tf
+from _run.run_common_tpu import (
+    check_all_exists_or_not,
+    create_tpu,
+    delete_tpu,
+    setup_continuous_training,
+)
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
+from losses.losses_bg_weighted_cce import BgWeightedCrossentropy
 from ref_local_tracking.models.backbone.unet_l4 import unet_l4
 from ref_local_tracking.models.ref_local_tracking_model_003 import (
     ref_local_tracking_model_003,
@@ -25,7 +32,6 @@ from ref_local_tracking.processings.tf.preprocessing import (
     tf_ref_image_preprocessing_sequence,
 )
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
-from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import CategoricalAccuracy
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -33,13 +39,6 @@ from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
 from utils.run_setting import get_run_id
 from utils.tf_images import decode_png
-
-from _run.run_common_tpu import (
-    check_all_exists_or_not,
-    create_tpu,
-    delete_tpu,
-    setup_continuous_training,
-)
 
 if __name__ == "__main__":
     # 1. Variables --------
@@ -269,7 +268,14 @@ Training Data Folder: {}/{}
 
         model.compile(
             optimizer=Adam(lr=1e-4),
-            loss=[CategoricalCrossentropy()],
+            loss=[
+                BgWeightedCrossentropy(
+                    bg_to_bg_weight=1.0,
+                    bg_to_fg_weight=4.0,
+                    fg_to_bg_weight=8.0,
+                    fg_to_fg_weight=1.0,
+                )
+            ],
             loss_weights=[1.0],
             metrics=[CategoricalAccuracy(name="accuracy")],
         )

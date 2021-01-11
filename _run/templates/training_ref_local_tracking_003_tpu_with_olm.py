@@ -10,6 +10,9 @@ import tensorflow as tf
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
+from ref_local_tracking.configs.losses import RefLoss
+from ref_local_tracking.configs.metrics import RefMetric
+from ref_local_tracking.configs.optimizers import RefOptimizer
 from ref_local_tracking.models.backbone.unet_l4 import unet_l4
 from ref_local_tracking.models.ref_local_tracking_model_003 import (
     ref_local_tracking_model_003,
@@ -25,9 +28,6 @@ from ref_local_tracking.processings.tf.preprocessing import (
     tf_ref_image_preprocessing_sequence,
 )
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.metrics import CategoricalAccuracy
-from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import EarlyStopping, ModelCheckpoint
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
@@ -38,6 +38,7 @@ from _run.run_common_tpu import (
     check_all_exists_or_not,
     create_tpu,
     delete_tpu,
+    loss_coords,
     setup_continuous_training,
 )
 
@@ -123,6 +124,29 @@ if __name__ == "__main__":
             ex) 'gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974'",
     )
     parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="adam1",
+        help="Optimizer. One of 'adam1' \
+            ex) 'adam1'",
+    )
+    parser.add_argument(
+        "--losses",
+        type=loss_coords,
+        default=[("categorical_crossentropy", 1.0)],
+        help="Loss and weight pair. \
+            Loss is one of 'categorical_crossentropy', 'weighted_cce1'. \
+            ex) 'categorical_crossentropy',1.0 'weighted_cce',0.5",
+        nargs="*",
+    )
+    parser.add_argument(
+        "--metrics",
+        type=str,
+        default=["categorical_accuracy"],
+        help="Metrics. One of 'categorical_accuracy' ex) 'categorical_accuracy'",
+        nargs="*",
+    )
+    parser.add_argument(
         "--freeze_unet_model",
         action="store_true",
         help="With this option, U-Net model would be freeze for training.",
@@ -141,6 +165,10 @@ if __name__ == "__main__":
     training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
     pretrained_unet_path: Optional[str] = args.pretrained_unet_path
     freeze_unet_model: bool = args.freeze_unet_model
+    # optimizer, losses, metrics
+    optimizer: str = args.optimizer
+    losses = args.losses
+    metrics: str = args.metrics
 
     # 1-3) continuous
     continuous_model_name: Optional[str] = args.continuous_model_name
@@ -268,10 +296,10 @@ Training Data Folder: {}/{}
             model = tf.keras.models.load_model(continuous_model_name)
 
         model.compile(
-            optimizer=Adam(lr=1e-4),
-            loss=[CategoricalCrossentropy()],
-            loss_weights=[1.0],
-            metrics=[CategoricalAccuracy(name="accuracy")],
+            optimizer=RefOptimizer(optimizer).get_optimizer(),
+            loss=list(map(lambda el: RefLoss(el[0]).get_loss(), losses)),
+            loss_weights=list(map(lambda el: el[1], losses)),
+            metrics=list(map(lambda el: RefMetric(el).get_metric(), metrics)),
         )
         tmp_plot_model_img_path = "/tmp/model.png"
         plot_model(

@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 import tensorflow as tf
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
+from losses.losses_weighted_cce import WeightedCrossentropy
 from ref_local_tracking.processings.tf.preprocessing import (
     tf_color_to_random_map,
     tf_input_ref_label_1_preprocessing_function,
@@ -17,9 +18,6 @@ from ref_local_tracking.processings.tf.preprocessing import (
     tf_main_image_preprocessing_sequence,
     tf_ref_image_preprocessing_sequence,
 )
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.metrics import CategoricalAccuracy
-from tensorflow.keras.optimizers import Adam
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
 from utils.run_setting import get_run_id
@@ -170,13 +168,52 @@ Predict Data Folder: {}/{}
 
     # 3. Model compile --------
     def get_model():
-        model = tf.keras.models.load_model(model_weight_path)
-        model.compile(
-            optimizer=Adam(lr=1e-4),
-            loss=[CategoricalCrossentropy()],
-            loss_weights=[1.0],
-            metrics=[CategoricalAccuracy(name="accuracy")],
+        # model = tf.keras.models.load_model(model_weight_path)
+        model = tf.keras.models.load_model(
+            model_weight_path,
+            custom_objects={
+                "WeightedCrossentropy": WeightedCrossentropy(
+                    weights=[
+                        10.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0,
+                    ]
+                )
+            },
         )
+        # model.compile(
+        #     optimizer=Adam(lr=1e-4),
+        #     loss=[CategoricalCrossentropy()],
+        #     loss_weights=[1.0],
+        #     metrics=[CategoricalAccuracy(name="accuracy")],
+        # )
         tmp_plot_model_img_path = "/tmp/model.png"
         plot_model(
             model,

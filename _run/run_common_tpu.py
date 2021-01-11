@@ -1,3 +1,4 @@
+import argparse
 import os
 import subprocess
 from typing import List, Optional, TypeVar
@@ -12,6 +13,14 @@ def check_both_exists_or_not(a: Optional[T1], b: Optional[T2]) -> bool:
 
 def check_all_exists_or_not(list: List[T1]) -> bool:
     return not (any(list) and not all(list))
+
+
+def loss_coords(s):
+    try:
+        x, y = s.split(",")
+        return (x, float(y))
+    except:
+        raise argparse.ArgumentTypeError("Coordinates must be x, y")
 
 
 def setup_continuous_training(
@@ -30,7 +39,7 @@ def setup_continuous_training(
 def create_tpu(
     tpu_name: str,
     ctpu_zone: str,
-    range: str = "10.240.0.0/29",
+    # range: str = "10.240.0.0/29",
     accelerator_type: str = "v3-8",
     version="2.3.1",
 ):
@@ -43,8 +52,8 @@ def create_tpu(
             tpu_name,
             "--zone",
             ctpu_zone,
-            "--range",
-            range,
+            # "--range",
+            # range,
             "--accelerator-type",
             accelerator_type,
             "--version",
