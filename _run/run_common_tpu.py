@@ -30,7 +30,7 @@ def setup_continuous_training(
 def create_tpu(
     tpu_name: str,
     ctpu_zone: str,
-    range: str = "10.240.0.0/29",
+    # range: str = "10.240.0.0/29",
     accelerator_type: str = "v3-8",
     version="2.3.1",
 ):
@@ -43,8 +43,8 @@ def create_tpu(
             tpu_name,
             "--zone",
             ctpu_zone,
-            "--range",
-            range,
+            # "--range",
+            # range,
             "--accelerator-type",
             accelerator_type,
             "--version",

@@ -122,6 +122,10 @@ if __name__ == "__main__":
     predict_dataset_folder: str = os.path.join(
         base_dataset_folder, var_predict_dataset_folder
     )
+    # sample files
+    predict_sample_file_folder: str = os.path.join(
+        predict_dataset_folder, "framed_sample", "zero"
+    )
     # input - main image
     predict_main_image_folder: str = os.path.join(
         predict_dataset_folder, "framed_image", "zero"
@@ -202,7 +206,9 @@ Predict Data Folder: {}/{}
         return a + "/" + b
 
     predict_main_image_file_names = tf.data.Dataset.list_files(
-        predict_main_image_folder + "/*", shuffle=False
+        predict_sample_file_folder + "/*",
+        shuffle=False
+        # predict_main_image_folder + "/*", shuffle=False
     ).map(spl)
 
     predict_dataset = (
