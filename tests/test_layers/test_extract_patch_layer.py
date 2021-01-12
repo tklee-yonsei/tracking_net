@@ -3,9 +3,9 @@ from layers.extract_patch_layer import ExtractPatchLayer
 
 
 class ExtractPatchLayerTest(tf.test.TestCase):
-    def testExtractPatchLayerShapes(self):
+    def test_extract_patch_layer_shapes(self):
         batch_size = 2
-        hw_size = 5
+        hw_size = 2
         channel_size = 3
         k_size = 3
 
@@ -16,4 +16,3 @@ class ExtractPatchLayerTest(tf.test.TestCase):
         tf.debugging.assert_shapes(
             [(output, (batch_size, hw_size, hw_size, k_size * k_size * channel_size))]
         )
-
