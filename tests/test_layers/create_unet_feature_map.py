@@ -95,20 +95,23 @@ if __name__ == "__main__":
         custom_objects={"binary_class_mean_iou": binary_class_mean_iou},
     )
 
-    model = l4_fmap_model(unet_model)
-    model.summary()
+    model_l4 = l4_fmap_model(unet_model)
+    model_l3 = l3_fmap_model(unet_model)
+    model_l2 = l2_fmap_model(unet_model)
+    model_l1 = l1_fmap_model(unet_model)
+    models = [model_l1, model_l2, model_l3, model_l4]
 
     predict_test_batch_size = 1
     predict_main_image_file_names = tf.data.Dataset.list_files(
-        # "../test_resources/tracking_test/framed_image/p1/*", shuffle=False
-        "../test_resources/tracking_test/framed_image/zero/*",
+        "../test_resources/tracking_test/framed_image/p1/*",
+        # "../test_resources/tracking_test/framed_image/zero/*",
         shuffle=False,
     ).map(spl)
     predict_dataset = (
         predict_main_image_file_names.map(
             lambda fname: (
-                # s("../test_resources/tracking_test/framed_image/p1", fname),
-                s("../test_resources/tracking_test/framed_image/zero", fname),
+                s("../test_resources/tracking_test/framed_image/p1", fname),
+                # s("../test_resources/tracking_test/framed_image/zero", fname),
                 fname,
             )
         )
@@ -133,19 +136,23 @@ if __name__ == "__main__":
 
     # 5. Predict --------
     for predict_data in predict_dataset:
-        predicted_batch_data = model.predict(
-            predict_data[0],
-            batch_size=predict_test_batch_size,
-            verbose=1,
-            max_queue_size=1,
-        )
-        for predicted_data in predicted_batch_data:
-            proto = tf.make_tensor_proto(predicted_data)
-            res = tf.make_ndarray(proto)
-            # filename = tf.strings.split(predict_data[1], ".")[0] + "_l4_p1"
-            filename = tf.strings.split(predict_data[1], ".")[0] + "_l4_zero"
-            filename = s(".", filename)[0]
-            print(filename)
+        for model_index, model in enumerate(models):
+            predicted_batch_data = model.predict(
+                predict_data[0],
+                batch_size=predict_test_batch_size,
+                verbose=1,
+                max_queue_size=1,
+            )
+            for predicted_data in predicted_batch_data:
+                proto = tf.make_tensor_proto(predicted_data)
+                res = tf.make_ndarray(proto)
+                filename = tf.strings.split(predict_data[1], ".")[0] + "_l{}_p1".format(
+                    model_index + 1
+                )
+                # filename = tf.strings.split(predict_data[1], ".")[
+                #     0
+                # ] + "_l{}_zero".format(model_index + 1)
+                filename = s(".", filename)[0]
+                print(filename)
 
-            # tf.io.write_file(filename, proto)
-            np.save(bytes.decode(filename.numpy()), res)
+                np.save(bytes.decode(filename.numpy()), res)
