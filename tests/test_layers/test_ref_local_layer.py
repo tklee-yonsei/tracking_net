@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from keras import backend as K
 from layers.extract_patch_layer import ExtractPatchLayer
@@ -178,3 +179,23 @@ class RefLocalLayerTest(tf.test.TestCase):
         print(attn_einsum)
         attn_ratio = tf.nn.softmax(attn_einsum, axis=-1)
         print(attn_ratio)
+
+    def test_dot_sample(self):
+        k_size = 3
+
+        img = tf.constant(np.load("tests/test_layers/015_02_15_l4_zero.npy"))
+        img = tf.expand_dims(img, 0)
+        hw_size = tf.shape(img)[1]
+        channel_size = tf.shape(img)[-1]
+
+        ref = tf.constant(np.load("tests/test_layers/015_02_15_l4_p1.npy"))
+        ref = tf.expand_dims(ref, 0)
+        ref = ExtractPatchLayer(k_size=k_size)(ref)
+        ref = tf.reshape(ref, (-1, hw_size, hw_size, k_size * k_size, channel_size))
+
+        attn_einsum = tf.einsum("bhwc,bhwkc->bhwk", img, ref)
+
+        print(attn_einsum)
+        attn_ratio = tf.nn.softmax(attn_einsum, axis=-1)
+        print(attn_ratio)
+        print(attn_ratio[:, 31, 31, :])
