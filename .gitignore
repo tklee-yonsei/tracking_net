@@ -2,6 +2,8 @@
 data/**
 dataset/**
 save/**
+tests/test_resources/sample_unet_model/**
+tests/test_resources/tracking_test/**
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode
