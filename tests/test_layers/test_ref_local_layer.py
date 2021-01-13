@@ -183,12 +183,16 @@ class RefLocalLayerTest(tf.test.TestCase):
     def test_dot_sample(self):
         k_size = 3
 
-        img = tf.constant(np.load("tests/test_layers/015_02_15_l4_zero.npy"))
+        img = tf.constant(
+            np.load("tests/test_resources/sample_feature_map/015_02_15_l4_zero.npy")
+        )
         img = tf.expand_dims(img, 0)
         hw_size = tf.shape(img)[1]
         channel_size = tf.shape(img)[-1]
 
-        ref = tf.constant(np.load("tests/test_layers/015_02_15_l4_p1.npy"))
+        ref = tf.constant(
+            np.load("tests/test_resources/sample_feature_map/015_02_15_l4_p1.npy")
+        )
         ref = tf.expand_dims(ref, 0)
         ref = ExtractPatchLayer(k_size=k_size)(ref)
         ref = tf.reshape(ref, (-1, hw_size, hw_size, k_size * k_size, channel_size))
