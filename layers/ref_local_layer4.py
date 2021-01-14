@@ -93,6 +93,7 @@ class RefLocal4(Layer):
             )
             aggregation = tf.einsum("bhwk,bhwki->bhwi", attn, ref_main_value)
         elif self.aggregate_mode == "argmax":
+            raise NotImplementedError("`argmax` aggregate has not been implemented yet")
             ref_value_stacked = ExtractPatchLayer(k_size=self.k_size)(ref_value)
             ref_value_stacked = tf.reshape(
                 ref_value_stacked,
@@ -107,11 +108,10 @@ class RefLocal4(Layer):
             ref_main_value = tf.concat(
                 [ref_value_stacked, tf.expand_dims(main_value, -2)], axis=-2
             )
-            aggregation = tf.einsum(
-                "bhwk,bhwki->bhwi",
-                tf.one_hot(tf.argmax(attn, axis=-1), depth=tf.shape(attn)[-1]),
-                ref_main_value,
+            attn2 = tf.one_hot(
+                tf.argmax(attn, axis=-1), depth=tf.shape(attn)[-1], dtype=tf.float32
             )
+            aggregation = tf.einsum("bhwk,bhwki->bhwi", attn2, ref_main_value)
         else:
             raise ValueError(
                 "`aggregate_mode` value is not valid. Should be one of 'weighted_sum', 'argmax'."

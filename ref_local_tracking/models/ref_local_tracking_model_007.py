@@ -98,7 +98,6 @@ def ref_local_tracking_model_007(
     ref_l4_1 = Conv2D(
         256, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
     )(ref_l4_1)
-
     ref_local_l4_1: Layer = RefLocal3(
         mode="dot", aggregate_mode="weighted_sum", k_size=5, bin_size=bin_num,
     )([main_l4_1, ref_l4_1, ref_label_1_input])
