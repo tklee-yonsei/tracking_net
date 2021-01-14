@@ -5,7 +5,7 @@ from layers.extract_patch_layer import ExtractPatchLayer
 from layers.ref_local_layer import RefLocal
 
 
-class RefLocalLayerTest(tf.test.TestCase):
+class RefLocalCalcTest(tf.test.TestCase):
     def test_ref_local_layer_dot(self):
         batch_size = 2
         hw_size = 2
@@ -259,3 +259,97 @@ class RefLocalLayerTest(tf.test.TestCase):
         print(attn_ratio)
         # np.save("015_02_15_l4", attn_ratio)
         print(attn_ratio[:, 31, 31, :])
+
+    def test_aggregate_mode(self):
+        # Attention
+        batch_size = 1
+        hw_size = 2
+        k_size = 3
+        attn = tf.reshape(
+            tf.range(
+                0, (batch_size * hw_size * hw_size * k_size * k_size), dtype=tf.float32
+            ),
+            (-1, hw_size, hw_size, k_size * k_size),
+        )
+        # tf.Tensor(
+        # [[[[ 0.  1.  2.  3.  4.  5.  6.  7.  8.]
+        # [ 9. 10. 11. 12. 13. 14. 15. 16. 17.]]
+
+        # [[18. 19. 20. 21. 22. 23. 24. 25. 26.]
+        # [27. 28. 29. 30. 31. 32. 33. 34. 35.]]]], shape=(1, 2, 2, 9), dtype=float32)
+
+        # Aggregate `weighted_sum`
+        bin_size = 5
+        ref_value = tf.constant(
+            [
+                [
+                    [[0.5, 0.3, 0.1, 0.0, 0.0], [0.6, 0.0, 0.3, 0.0, 0.1]],
+                    [[0.2, 0.15, 0.25, 0.0, 0.3], [0.1, 0.7, 0.0, 0.0, 0.2]],
+                ]
+            ]
+        )
+        # tf.Tensor(
+        # [[[[0.5  0.3  0.1  0.   0.  ]
+        # [0.6  0.   0.3  0.   0.1 ]]
+
+        # [[0.2  0.15 0.25 0.   0.3 ]
+        # [0.1  0.7  0.   0.   0.2 ]]]], shape=(1, 2, 2, 5), dtype=float32)
+        ref_value_stacked = ExtractPatchLayer(k_size=k_size)(ref_value)
+        ref_value_stacked = tf.reshape(
+            ref_value_stacked, (-1, hw_size, hw_size, k_size * k_size, bin_size),
+        )
+        # tf.Tensor(
+        # [[[[[0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.5  0.3  0.1  0.   0.  ]
+        #     [0.6  0.   0.3  0.   0.1 ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.2  0.15 0.25 0.   0.3 ]
+        #     [0.1  0.7  0.   0.   0.2 ]]
+
+        # [[0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.5  0.3  0.1  0.   0.  ]
+        #     [0.6  0.   0.3  0.   0.1 ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.2  0.15 0.25 0.   0.3 ]
+        #     [0.1  0.7  0.   0.   0.2 ]
+        #     [0.   0.   0.   0.   0.  ]]]
+
+        # [[[0.   0.   0.   0.   0.  ]
+        #     [0.5  0.3  0.1  0.   0.  ]
+        #     [0.6  0.   0.3  0.   0.1 ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.2  0.15 0.25 0.   0.3 ]
+        #     [0.1  0.7  0.   0.   0.2 ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]]
+
+        # [[0.5  0.3  0.1  0.   0.  ]
+        #     [0.6  0.   0.3  0.   0.1 ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.2  0.15 0.25 0.   0.3 ]
+        #     [0.1  0.7  0.   0.   0.2 ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]
+        #     [0.   0.   0.   0.   0.  ]]]]], shape=(1, 2, 2, 9, 5), dtype=float32)
+        aggregation = tf.einsum("bhwk,bhwki->bhwi", attn, ref_value_stacked)
+        # tf.Tensor(
+        # [[[[ 7.2000003  7.85       3.65       0.         4.2000003]
+        # [18.4       17.05       8.85       0.         9.       ]]
+
+        # [[28.199999  25.1       13.4        0.        13.200001 ]
+        # [39.4       34.3       18.6        0.        18.       ]]]], shape=(1, 2, 2, 5), dtype=float32)
+
+        # [[[[4*0.5+5*0.6+7*0.2+8*0.1   4*0.3+7*0.15+8*0.7   4*0.1+5*0.3+7*0.25    0    5*0.1+7*0.3+8*0.2]
+        # [...]]]]
+        attn2 = tf.expand_dims(attn, axis=-1)
+        stacked_multiply = attn2 * ref_value_stacked
+        aggregation2 = tf.reduce_sum(stacked_multiply, axis=3)
+
+        tf.debugging.assert_equal(aggregation, aggregation2)
