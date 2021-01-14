@@ -217,3 +217,45 @@ class RefLocalLayerTest(tf.test.TestCase):
         print(attn_ratio)
         # np.save("015_02_15_l4", attn_ratio)
         print(attn_ratio[:, 31, 31, :])
+
+    def test_norm_dot_sample(self):
+        k_size = 3
+
+        img = tf.constant(
+            np.load("tests/test_resources/sample_feature_map/015_02_15_l4_zero.npy")
+        )
+        img = tf.expand_dims(img, 0)
+        hw_size = tf.shape(img)[1]
+        channel_size = tf.shape(img)[-1]
+
+        ref = tf.constant(
+            np.load("tests/test_resources/sample_feature_map/015_02_15_l4_p1.npy")
+        )
+        ref = tf.expand_dims(ref, 0)
+        ref = ExtractPatchLayer(k_size=k_size)(ref)
+        ref = tf.reshape(ref, (-1, hw_size, hw_size, k_size * k_size, channel_size))
+
+        img2 = tf.expand_dims(img, -2)
+        ref_img = tf.concat([ref, img2], axis=-2)
+
+        attn_einsum = tf.einsum("bhwc,bhwkc->bhwk", img, ref_img)
+        print(attn_einsum)
+
+        attn_ratio = tf.nn.softmax(attn_einsum, axis=-1)
+        attn_ratio = attn_ratio[:, :, :, :-1]
+        for i in range(tf.shape(attn_ratio)[1]):
+            for j in range(tf.shape(attn_ratio)[2]):
+                print("{}/{}".format(i, j))
+                print(attn_ratio[:, i : i + 1, j : j + 1, :])
+                print("--------------")
+        # total - 9216
+        # 0.0 - 2011
+        # 0.1 - 7119
+        # 0.2 - 71
+        # 0.3 - 9
+        # 0.4 - 3
+        # 0.5 - 3
+
+        print(attn_ratio)
+        # np.save("015_02_15_l4", attn_ratio)
+        print(attn_ratio[:, 31, 31, :])
