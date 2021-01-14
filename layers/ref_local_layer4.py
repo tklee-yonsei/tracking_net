@@ -3,7 +3,7 @@ from image_keras.tf.keras.layers.extract_patch_layer import ExtractPatchLayer
 from tensorflow.keras.layers import Layer
 
 
-class RefLocal3(Layer):
+class RefLocal4(Layer):
     def __init__(
         self,
         bin_size: int,
@@ -26,7 +26,7 @@ class RefLocal3(Layer):
         self.channels_size = input_shape[0][-1]
 
     def get_config(self):
-        config = super(RefLocal3, self).get_config()
+        config = super(RefLocal4, self).get_config()
         config.update(
             {
                 "bin_size": self.bin_size,
@@ -43,8 +43,9 @@ class RefLocal3(Layer):
 
     def call(self, inputs):
         main = inputs[0]
-        ref = inputs[1]
-        ref_value = inputs[2]
+        main_value = inputs[1]
+        ref = inputs[2]
+        ref_value = inputs[3]
 
         # Attention
         ref_stacked = ExtractPatchLayer(k_size=self.k_size)(ref)
@@ -59,13 +60,9 @@ class RefLocal3(Layer):
             ),
         )
         if self.mode == "dot":
-            attn = tf.einsum("bhwc,bhwkc->bhwk", main, ref_stacked)
-            attn = tf.nn.softmax(attn, axis=-1)
-        elif self.mode == "norm_dot":
             ref_main = tf.concat([ref_stacked, tf.expand_dims(main, -2)], axis=-2)
             attn = tf.einsum("bhwc,bhwkc->bhwk", main, ref_main)
             attn = tf.nn.softmax(attn, axis=-1)
-            attn = attn[:, :, :, :-1]
         elif self.mode == "gaussian":
             attn = tf.math.exp(
                 -tf.reduce_sum(tf.math.squared_difference(main, ref_stacked), axis=-1)
@@ -73,7 +70,7 @@ class RefLocal3(Layer):
             raise NotImplementedError("gaussian model has not been implemented yet")
         else:
             raise ValueError(
-                "`mode` value is not valid. Should be one of 'dot', 'norm_dot', 'gaussian'."
+                "`mode` value is not valid. Should be one of 'dot', 'gaussian'."
             )
 
         # Aggregate
@@ -89,7 +86,10 @@ class RefLocal3(Layer):
                     self.bin_size,
                 ),
             )
-            aggregation = tf.einsum("bhwk,bhwki->bhwi", attn, ref_value_stacked)
+            ref_main_value = tf.concat(
+                [ref_value_stacked, tf.expand_dims(main_value, -2)], axis=-2
+            )
+            aggregation = tf.einsum("bhwk,bhwki->bhwi", attn, ref_main_value)
         elif self.aggregate_mode == "argmax":
             ref_value_stacked = ExtractPatchLayer(k_size=self.k_size)(ref_value)
             ref_value_stacked = tf.reshape(
@@ -102,10 +102,13 @@ class RefLocal3(Layer):
                     self.bin_size,
                 ),
             )
+            ref_main_value = tf.concat(
+                [ref_value_stacked, tf.expand_dims(main_value, -2)], axis=-2
+            )
             aggregation = tf.einsum(
                 "bhwk,bhwki->bhwi",
                 tf.one_hot(tf.argmax(attn, axis=-1), depth=tf.shape(attn)[-1]),
-                ref_value_stacked,
+                ref_main_value,
             )
         else:
             raise ValueError(

@@ -6,21 +6,6 @@ from layers.ref_local_layer import RefLocal
 
 
 class RefLocalCalcTest(tf.test.TestCase):
-    def test_ref_local_layer_dot(self):
-        batch_size = 2
-        hw_size = 2
-        channel_size = 3
-        k_size = 3
-        bin_size = 4
-
-        input_main = tf.ones([batch_size, hw_size, hw_size, channel_size])
-        input_ref = tf.ones([batch_size, hw_size, hw_size, channel_size])
-        input_ref_value = tf.ones([batch_size, hw_size, hw_size, bin_size])
-
-        l = RefLocal(bin_size=bin_size, k_size=k_size, mode="dot")(
-            [input_main, input_ref, input_ref_value]
-        )
-
     def test_extract_dot_einsum(self):
         batch_size = 1
         hw_size = 2
