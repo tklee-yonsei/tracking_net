@@ -1,12 +1,15 @@
+from typing import Optional
+
 import tensorflow as tf
 from image_keras.tf.keras.layers.extract_patch_layer import ExtractPatchLayer
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Conv2D, Layer
 
 
 class RefLocal4(Layer):
     def __init__(
         self,
         bin_size: int,
+        intermediate_dim: Optional[int] = None,
         k_size: int = 5,
         mode: str = "dot",
         aggregate_mode: str = "weighted_sum",
@@ -14,6 +17,7 @@ class RefLocal4(Layer):
     ):
         super().__init__(**kwargs)
         self.bin_size = bin_size
+        self.intermediate_dim = intermediate_dim
         self.k_size = k_size
         self.mode = mode
         self.aggregate_mode = aggregate_mode
@@ -30,6 +34,7 @@ class RefLocal4(Layer):
         config.update(
             {
                 "bin_size": self.bin_size,
+                "intermediate_dim": self.intermediate_dim,
                 "k_size": self.k_size,
                 "mode": self.mode,
                 "aggregate_mode": self.aggregate_mode,
@@ -46,6 +51,23 @@ class RefLocal4(Layer):
         main_value = inputs[1]
         ref = inputs[2]
         ref_value = inputs[3]
+
+        # Intermediate
+        if self.intermediate_dim is not None:
+            main = Conv2D(
+                self.intermediate_dim,
+                1,
+                padding="same",
+                use_bias=False,
+                kernel_initializer="he_normal",
+            )(main)
+            ref = Conv2D(
+                self.intermediate_dim,
+                1,
+                padding="same",
+                use_bias=False,
+                kernel_initializer="he_normal",
+            )(ref)
 
         # Attention
         ref_stacked = ExtractPatchLayer(k_size=self.k_size)(ref)
