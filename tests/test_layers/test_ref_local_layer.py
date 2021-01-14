@@ -201,5 +201,19 @@ class RefLocalLayerTest(tf.test.TestCase):
 
         print(attn_einsum)
         attn_ratio = tf.nn.softmax(attn_einsum, axis=-1)
+        for i in range(tf.shape(attn_ratio)[1]):
+            for j in range(tf.shape(attn_ratio)[2]):
+                print("{}/{}".format(i, j))
+                print(attn_ratio[:, i : i + 1, j : j + 1, :])
+                print("--------------")
+        # total - 9216
+        # 0.0 - 2011
+        # 0.1 - 7119
+        # 0.2 - 71
+        # 0.3 - 9
+        # 0.4 - 3
+        # 0.5 - 3
+
         print(attn_ratio)
+        # np.save("015_02_15_l4", attn_ratio)
         print(attn_ratio[:, 31, 31, :])
