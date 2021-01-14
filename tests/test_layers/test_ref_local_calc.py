@@ -353,3 +353,53 @@ class RefLocalCalcTest(tf.test.TestCase):
         aggregation2 = tf.reduce_sum(stacked_multiply, axis=3)
 
         tf.debugging.assert_equal(aggregation, aggregation2)
+
+    def test_aggregate_mode_argmax(self):
+        # Attention
+        batch_size = 1
+        hw_size = 2
+        k_size = 3
+        attn = tf.constant(
+            [
+                [
+                    [
+                        [0.0, 1.0, 9.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+                        [9.0, 10.0, 11.0, 22.0, 13.0, 14.0, 15.0, 16.0, 17.0],
+                    ],
+                    [
+                        [18.0, 19.0, 29.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0],
+                        [27.0, 28.0, 29.0, 30.0, 31.0, 44.0, 33.0, 34.0, 35.0],
+                    ],
+                ]
+            ]
+        )
+
+        # Aggregate `argmax`
+        bin_size = 5
+        ref_value = tf.constant(
+            [
+                [
+                    [[0.5, 0.3, 0.1, 0.0, 0.0], [0.6, 0.0, 0.3, 0.0, 0.1]],
+                    [[0.2, 0.15, 0.25, 0.0, 0.3], [0.1, 0.7, 0.0, 0.0, 0.2]],
+                ]
+            ]
+        )
+        ref_value_stacked = ExtractPatchLayer(k_size=k_size)(ref_value)
+        ref_value_stacked = tf.reshape(
+            ref_value_stacked, (-1, hw_size, hw_size, k_size * k_size, bin_size),
+        )
+        aggregation = tf.einsum(
+            "bhwk,bhwki->bhwi",
+            tf.one_hot(tf.argmax(attn, axis=-1), depth=tf.shape(attn)[-1]),
+            ref_value_stacked,
+        )
+        result = tf.constant(
+            [
+                [
+                    [[0.0, 0.0, 0.0, 0.0, 0.0], [0.5, 0.3, 0.1, 0.0, 0.0]],
+                    [[0.6, 0.0, 0.3, 0.0, 0.1], [0.0, 0.0, 0.0, 0.0, 0.0]],
+                ]
+            ]
+        )
+
+        tf.debugging.assert_equal(aggregation, result)
