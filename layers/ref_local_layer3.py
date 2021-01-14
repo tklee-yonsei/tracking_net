@@ -77,7 +77,7 @@ class RefLocal3(Layer):
                 self.h_size,
                 self.h_size,
                 self.k_size * self.k_size,
-                self.channels_size,
+                self.intermediate_dim or self.channels_size,
             ),
         )
         if self.mode == "dot":

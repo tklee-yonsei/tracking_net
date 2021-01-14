@@ -130,7 +130,7 @@ def ref_local_tracking_model_007(
     )([main_l4_4, l4_up_3, ref_l4_4, ref_label_4_input])
 
     # Out
-    output = Softmax()(ref_local_l4_4)
+    # output = Softmax()(ref_local_l4_4)
 
     return Model(
         inputs=[
@@ -141,5 +141,5 @@ def ref_local_tracking_model_007(
             ref_label_3_input,
             ref_label_4_input,
         ],
-        outputs=[output],
+        outputs=[ref_local_l4_4],
     )
