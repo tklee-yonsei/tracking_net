@@ -2,7 +2,14 @@ from typing import Tuple
 
 from layers.ref_local_layer3 import RefLocal3
 from layers.ref_local_layer4 import RefLocal4
-from tensorflow.keras.layers import Input, Layer, Softmax, UpSampling2D, concatenate
+from tensorflow.keras.layers import (
+    Conv2D,
+    Input,
+    Layer,
+    Softmax,
+    UpSampling2D,
+    concatenate,
+)
 from tensorflow.keras.models import Model
 
 
@@ -84,49 +91,57 @@ def ref_local_tracking_model_008(
 
     # First
     main_l4_1 = unet_l4_skip_1_model(main_image_input)
+    main_l4_1 = Conv2D(
+        256, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(main_l4_1)
     ref_l4_1 = unet_l4_skip_1_model(ref_image_input)
+    ref_l4_1 = Conv2D(
+        256, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(ref_l4_1)
     ref_local_l4_1: Layer = RefLocal3(
-        intermediate_dim=256,
-        mode="norm_dot",
-        aggregate_mode="argmax",
-        k_size=5,
-        bin_size=bin_num,
+        mode="norm_dot", aggregate_mode="argmax", k_size=5, bin_size=bin_num,
     )([main_l4_1, ref_l4_1, ref_label_1_input])
     l4_up_1 = UpSampling2D(interpolation="bilinear")(ref_local_l4_1)
 
     # Second
     main_l4_2 = unet_l4_skip_2_model(main_image_input)
+    main_l4_2 = Conv2D(
+        128, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(main_l4_2)
     ref_l4_2 = unet_l4_skip_2_model(ref_image_input)
+    ref_l4_2 = Conv2D(
+        128, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(ref_l4_2)
     ref_local_l4_2: Layer = RefLocal4(
-        intermediate_dim=128,
-        mode="dot",
-        aggregate_mode="argmax",
-        k_size=5,
-        bin_size=bin_num,
+        mode="dot", aggregate_mode="argmax", k_size=5, bin_size=bin_num,
     )([main_l4_2, l4_up_1, ref_l4_2, ref_label_2_input])
     l4_up_2 = UpSampling2D(interpolation="bilinear")(ref_local_l4_2)
 
     # Third
     main_l4_3 = unet_l4_skip_3_model(main_image_input)
+    main_l4_3 = Conv2D(
+        64, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(main_l4_3)
     ref_l4_3 = unet_l4_skip_3_model(ref_image_input)
+    ref_l4_3 = Conv2D(
+        64, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(ref_l4_3)
     ref_local_l4_3: Layer = RefLocal4(
-        intermediate_dim=64,
-        mode="dot",
-        aggregate_mode="argmax",
-        k_size=5,
-        bin_size=bin_num,
+        mode="dot", aggregate_mode="argmax", k_size=5, bin_size=bin_num,
     )([main_l4_3, l4_up_2, ref_l4_3, ref_label_3_input])
     l4_up_3 = UpSampling2D(interpolation="bilinear")(ref_local_l4_3)
 
     # Fourth
     main_l4_4 = unet_l4_skip_4_model(main_image_input)
+    main_l4_4 = Conv2D(
+        32, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(main_l4_4)
     ref_l4_4 = unet_l4_skip_4_model(ref_image_input)
+    ref_l4_4 = Conv2D(
+        32, 1, padding="same", use_bias=False, kernel_initializer="he_normal",
+    )(ref_l4_4)
     ref_local_l4_4: Layer = RefLocal4(
-        intermediate_dim=32,
-        mode="dot",
-        aggregate_mode="argmax",
-        k_size=5,
-        bin_size=bin_num,
+        mode="dot", aggregate_mode="argmax", k_size=5, bin_size=bin_num,
     )([main_l4_4, l4_up_3, ref_l4_4, ref_label_4_input])
 
     # Out

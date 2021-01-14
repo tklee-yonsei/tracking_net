@@ -9,7 +9,6 @@ class RefLocal3(Layer):
     def __init__(
         self,
         bin_size: int,
-        intermediate_dim: Optional[int] = None,
         k_size: int = 5,
         mode: str = "dot",
         aggregate_mode: str = "weighted_sum",
@@ -17,7 +16,6 @@ class RefLocal3(Layer):
     ):
         super().__init__(**kwargs)
         self.bin_size = bin_size
-        self.intermediate_dim = intermediate_dim
         self.k_size = k_size
         self.mode = mode
         self.aggregate_mode = aggregate_mode
@@ -34,7 +32,6 @@ class RefLocal3(Layer):
         config.update(
             {
                 "bin_size": self.bin_size,
-                "intermediate_dim": self.intermediate_dim,
                 "k_size": self.k_size,
                 "mode": self.mode,
                 "aggregate_mode": self.aggregate_mode,
@@ -51,23 +48,6 @@ class RefLocal3(Layer):
         ref = inputs[1]
         ref_value = inputs[2]
 
-        # Intermediate
-        if self.intermediate_dim is not None:
-            main = Conv2D(
-                self.intermediate_dim,
-                1,
-                padding="same",
-                use_bias=False,
-                kernel_initializer="he_normal",
-            )(main)
-            ref = Conv2D(
-                self.intermediate_dim,
-                1,
-                padding="same",
-                use_bias=False,
-                kernel_initializer="he_normal",
-            )(ref)
-
         # Attention
         ref_stacked = ExtractPatchLayer(k_size=self.k_size)(ref)
         ref_stacked = tf.reshape(
@@ -77,7 +57,7 @@ class RefLocal3(Layer):
                 self.h_size,
                 self.h_size,
                 self.k_size * self.k_size,
-                self.intermediate_dim or self.channels_size,
+                self.channels_size,
             ),
         )
         if self.mode == "dot":
