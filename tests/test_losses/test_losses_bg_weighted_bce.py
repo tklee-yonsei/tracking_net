@@ -9,7 +9,7 @@ from losses.losses_bg_weighted_bce import (
 )
 
 
-class TestWeightedBCE(TestCase):
+class TestBGWeightedBCE(TestCase):
     def test_bce_loss(self):
         # data
         y_true = [[0, 1], [0, 0]]
