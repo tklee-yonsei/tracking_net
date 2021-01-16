@@ -67,6 +67,7 @@ def get_bg_weights(
     )
 
     # BG(t) to BG(p)
+    # 0.0 means bg, 1.0 means fg
     cal_bg_to_bg = K.all(
         K.equal(yt_yp, K.ones_like(yt_yp) * [0.0, 0.0]), axis=-1, keepdims=True,
     )

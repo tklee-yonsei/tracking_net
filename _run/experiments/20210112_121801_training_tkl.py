@@ -16,7 +16,7 @@ from _run.run_common_tpu import (
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
-from losses.losses_bg_weighted_cce import BgWeightedCrossentropy
+from losses.losses_bg_weighted_cce import BgWeightedCategoricalCrossentropy
 from ref_local_tracking.models.backbone.unet_l4 import unet_l4
 from ref_local_tracking.models.ref_local_tracking_model_003 import (
     ref_local_tracking_model_003,
@@ -269,7 +269,7 @@ Training Data Folder: {}/{}
         model.compile(
             optimizer=Adam(lr=1e-4),
             loss=[
-                BgWeightedCrossentropy(
+                BgWeightedCategoricalCrossentropy(
                     bg_to_bg_weight=1.0,
                     bg_to_fg_weight=4.0,
                     fg_to_bg_weight=4.0,
