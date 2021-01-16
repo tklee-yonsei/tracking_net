@@ -13,7 +13,7 @@ from tensorflow.keras.layers import (
 from tensorflow.keras.models import Model
 
 
-def ref_local_tracking_model_010(
+def ref_local_tracking_model_011(
     pre_trained_unet_l4_model: Model,
     input_main_image_shape: Tuple[int, int, int],
     input_ref_image_shape: Tuple[int, int, int],
