@@ -4,29 +4,22 @@ from tensorflow.python.keras.losses import LossFunctionWrapper
 from tensorflow.python.keras.utils import losses_utils
 
 
-def cce_loss(y_true, y_pred):
-    # scale predictions so that the class probas of each sample sum to 1
-    y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
-    # clip to prevent NaN's and Inf's
+def bce_loss(y_true, y_pred):
     y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-    # calc
-    loss = y_true * K.log(y_pred)
-    loss = -K.sum(loss, -1)
-    return loss
+    loss = y_true * K.log(y_pred + K.epsilon())
+    loss += (1 - y_true) * K.log(1 - y_pred + K.epsilon())
+    return K.mean(-loss, axis=-1)
 
 
-def cce_loss_pointwise_weight(y_true, y_pred, weight_func):
-    # scale predictions so that the class probas of each sample sum to 1
-    y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
-    # clip to prevent NaN's and Inf's
+def bce_loss_pointwise_weight(y_true, y_pred, weight_func):
     y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-    # calc
-    loss = y_true * K.log(y_pred) * weight_func(y_true, y_pred)
-    loss = -K.sum(loss, -1)
-    return loss
+    loss = y_true * K.log(y_pred + K.epsilon())
+    loss += (1 - y_true) * K.log(1 - y_pred + K.epsilon())
+    loss *= weight_func(y_true, y_pred)
+    return K.mean(-loss, axis=-1)
 
 
-class BgWeightedCategoricalCrossentropy(LossFunctionWrapper):
+class BgWeightedBinaryCrossentropy(LossFunctionWrapper):
     def __init__(
         self,
         bg_to_bg_weight,
@@ -35,10 +28,10 @@ class BgWeightedCategoricalCrossentropy(LossFunctionWrapper):
         fg_to_fg_weight,
         from_logits=False,
         reduction=losses_utils.ReductionV2.AUTO,
-        name="bg_weighted_categorical_crossentropy",
+        name="bg_weighted_binary_crossentropy",
     ):
-        super(BgWeightedCategoricalCrossentropy, self).__init__(
-            bg_weighted_categorical_crossentropy,
+        super(BgWeightedBinaryCrossentropy, self).__init__(
+            bg_weighted_binary_crossentropy,
             name=name,
             bg_to_bg_weight=bg_to_bg_weight,
             bg_to_fg_weight=bg_to_fg_weight,
@@ -54,6 +47,12 @@ class BgWeightedCategoricalCrossentropy(LossFunctionWrapper):
         self.from_logits = from_logits
 
 
+def softargmax(x, beta=1e10):
+    x = tf.convert_to_tensor(x)
+    x_range = tf.range(x.shape.as_list()[-1], dtype=x.dtype)
+    return tf.reduce_sum(tf.nn.softmax(x * beta) * x_range, axis=-1)
+
+
 def get_bg_weights(
     y_true,
     y_pred,
@@ -62,36 +61,30 @@ def get_bg_weights(
     fg_to_bg_weight=1.0,
     fg_to_fg_weight=1.0,
 ):
-    # predicted classes
-    y_pred_classes_float = tf.one_hot(
-        indices=K.argmax(y_pred), depth=tf.shape(y_pred)[-1]
+    y_pred_classes_float = tf.cast(tf.cast(y_pred + 0.5, tf.int32), tf.float32)
+    yt_yp = tf.concat(
+        [K.expand_dims(y_true), K.expand_dims(y_pred_classes_float)], axis=-1
     )
-    # y_pred with y_true
-    yp_yt = tf.concat(
-        [K.expand_dims(y_pred_classes_float), K.expand_dims(y_true)], axis=-1
-    )
-    # yp_yt for only bg (first bin)
-    yp_yt_bg = yp_yt[:, :, :, 0]
 
     # BG(t) to BG(p)
-    # 1.0 means bg, 0.0 means fg
+    # 0.0 means bg, 1.0 means fg
     cal_bg_to_bg = K.all(
-        K.equal(yp_yt_bg, K.ones_like(yp_yt_bg) * [1.0, 1.0]), axis=-1, keepdims=True,
+        K.equal(yt_yp, K.ones_like(yt_yp) * [0.0, 0.0]), axis=-1, keepdims=True,
     )
     cal_bg_to_bg = K.cast(cal_bg_to_bg, K.floatx())
     # BG(t) to FG(p)
     cal_bg_to_fg = K.all(
-        K.equal(yp_yt_bg, K.ones_like(yp_yt_bg) * [1.0, 0.0]), axis=-1, keepdims=True,
+        K.equal(yt_yp, K.ones_like(yt_yp) * [0.0, 1.0]), axis=-1, keepdims=True,
     )
     cal_bg_to_fg = K.cast(cal_bg_to_fg, K.floatx())
     # FG(t) to BG(p)
     cal_fg_to_bg = K.all(
-        K.equal(yp_yt_bg, K.ones_like(yp_yt_bg) * [0.0, 1.0]), axis=-1, keepdims=True,
+        K.equal(yt_yp, K.ones_like(yt_yp) * [1.0, 0.0]), axis=-1, keepdims=True,
     )
     cal_fg_to_bg = K.cast(cal_fg_to_bg, K.floatx())
     # FG(t) to FG(p)
     cal_fg_to_fg = K.all(
-        K.equal(yp_yt_bg, K.ones_like(yp_yt_bg) * [0.0, 0.0]), axis=-1, keepdims=True,
+        K.equal(yt_yp, K.ones_like(yt_yp) * [1.0, 1.0]), axis=-1, keepdims=True,
     )
     cal_fg_to_fg = K.cast(cal_fg_to_fg, K.floatx())
 
@@ -101,11 +94,11 @@ def get_bg_weights(
         + fg_to_bg_weight * cal_fg_to_bg
         + fg_to_fg_weight * cal_fg_to_fg
     )
-
+    weights = tf.squeeze(weights, axis=-1)
     return weights
 
 
-def bg_weighted_categorical_crossentropy(
+def bg_weighted_binary_crossentropy(
     y_true,
     y_pred,
     bg_to_bg_weight=1.0,
@@ -122,4 +115,4 @@ def bg_weighted_categorical_crossentropy(
         fg_to_bg_weight,
         fg_to_fg_weight,
     )
-    return cce_loss_pointwise_weight(y_true, y_pred, weight_func)
+    return bce_loss_pointwise_weight(y_true, y_pred, weight_func)

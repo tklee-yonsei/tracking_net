@@ -16,10 +16,9 @@ from _run.run_common_tpu import (
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
-from losses.losses_bg_weighted_cce import BgWeightedCategoricalCrossentropy
 from ref_local_tracking.models.backbone.unet_l4 import unet_l4
-from ref_local_tracking.models.ref_local_tracking_model_003 import (
-    ref_local_tracking_model_003,
+from ref_local_tracking.models.ref_local_tracking_model_010 import (
+    ref_local_tracking_model_010,
 )
 from ref_local_tracking.processings.tf.preprocessing import (
     tf_color_to_random_map,
@@ -30,9 +29,11 @@ from ref_local_tracking.processings.tf.preprocessing import (
     tf_main_image_preprocessing_sequence,
     tf_output_label_processing,
     tf_ref_image_preprocessing_sequence,
+    tf_unet_output_label_processing,
 )
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
-from tensorflow.keras.metrics import CategoricalAccuracy
+from tensorflow.keras.losses import BinaryCrossentropy
+from tensorflow.keras.metrics import BinaryAccuracy
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import EarlyStopping, ModelCheckpoint
 from utils.gc_storage import upload_blob
@@ -43,7 +44,7 @@ from utils.tf_images import decode_png
 if __name__ == "__main__":
     # 1. Variables --------
     # 모델 이름
-    model_name: str = "ref_local_tracking_model_003"
+    model_name: str = "ref_local_tracking_model_010"
     # 트레이닝 배치 크기
     training_batch_size: int = 8
     # 검증 배치 크기
@@ -207,6 +208,11 @@ if __name__ == "__main__":
     val_output_main_label_folder: str = os.path.join(
         val_dataset_folder, "framed_label", "zero"
     )
+    # output - bw label
+    training_output_bw_main_label_folder: str = os.path.join(
+        training_dataset_folder, "bw_label"
+    )
+    val_output_bw_main_label_folder: str = os.path.join(val_dataset_folder, "bw_label")
 
     # callback folder
     check_weight_name = training_id[1:]
@@ -250,7 +256,7 @@ Training Data Folder: {}/{}
                 custom_objects={"binary_class_mean_iou": binary_class_mean_iou},
             )
 
-        model = ref_local_tracking_model_003(
+        model = ref_local_tracking_model_010(
             pre_trained_unet_l4_model=unet_model,
             input_main_image_shape=(256, 256, 1),
             input_ref_image_shape=(256, 256, 1),
@@ -268,16 +274,9 @@ Training Data Folder: {}/{}
 
         model.compile(
             optimizer=Adam(lr=1e-4),
-            loss=[
-                BgWeightedCategoricalCrossentropy(
-                    bg_to_bg_weight=1.0,
-                    bg_to_fg_weight=4.0,
-                    fg_to_bg_weight=4.0,
-                    fg_to_fg_weight=1.0,
-                )
-            ],
+            loss=[BinaryCrossentropy()],
             loss_weights=[1.0],
-            metrics=[CategoricalAccuracy(name="accuracy")],
+            metrics=[binary_class_mean_iou, BinaryAccuracy(name="accuracy")],
         )
         tmp_plot_model_img_path = "/tmp/model.png"
         plot_model(
@@ -321,10 +320,11 @@ Training Data Folder: {}/{}
                     s(training_ref_result_label_folder, fname),
                 ),
                 (training_output_main_label_folder + "/" + fname),
+                (training_output_bw_main_label_folder + "/" + fname),
             )
         )
         .map(
-            lambda input_path_names, output_label_fname: (
+            lambda input_path_names, output_label_fname, output_bw_label_fname: (
                 (
                     decode_png(input_path_names[0]),
                     decode_png(input_path_names[1]),
@@ -334,19 +334,21 @@ Training Data Folder: {}/{}
                     decode_png(input_path_names[5], 3),
                 ),
                 (decode_png(output_label_fname, 3)),
+                (decode_png(output_bw_label_fname)),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, output_label: (
+            lambda input_imgs, output_label, output_bw_label: (
                 input_imgs,
                 tf_color_to_random_map(input_imgs[5], output_label[0], bin_size, 1),
                 output_label,
+                output_bw_label,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, color_info, output_label: (
+            lambda input_imgs, color_info, output_label, output_bw_label: (
                 (
                     tf_main_image_preprocessing_sequence(input_imgs[0]),
                     tf_ref_image_preprocessing_sequence(input_imgs[1]),
@@ -363,7 +365,7 @@ Training Data Folder: {}/{}
                         input_imgs[5], color_info, bin_size
                     ),
                 ),
-                (tf_output_label_processing(output_label, color_info, bin_size)),
+                (tf_unet_output_label_processing(output_bw_label)),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
@@ -391,10 +393,11 @@ Training Data Folder: {}/{}
                     s(val_ref_result_label_folder, fname),
                 ),
                 (val_output_main_label_folder + "/" + fname),
+                (val_output_bw_main_label_folder + "/" + fname),
             )
         )
         .map(
-            lambda input_path_names, output_label_fname: (
+            lambda input_path_names, output_label_fname, output_bw_label_fname: (
                 (
                     decode_png(input_path_names[0]),
                     decode_png(input_path_names[1]),
@@ -404,19 +407,21 @@ Training Data Folder: {}/{}
                     decode_png(input_path_names[5], 3),
                 ),
                 (decode_png(output_label_fname, 3)),
+                (decode_png(output_bw_label_fname)),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, output_label: (
+            lambda input_imgs, output_label, output_bw_label: (
                 input_imgs,
                 tf_color_to_random_map(input_imgs[5], output_label[0], bin_size, 1),
                 output_label,
+                output_bw_label,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, color_info, output_label: (
+            lambda input_imgs, color_info, output_label, output_bw_label: (
                 (
                     tf_main_image_preprocessing_sequence(input_imgs[0]),
                     tf_ref_image_preprocessing_sequence(input_imgs[1]),
@@ -433,7 +438,7 @@ Training Data Folder: {}/{}
                         input_imgs[5], color_info, bin_size
                     ),
                 ),
-                (tf_output_label_processing(output_label, color_info, bin_size)),
+                (tf_unet_output_label_processing(output_bw_label)),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )

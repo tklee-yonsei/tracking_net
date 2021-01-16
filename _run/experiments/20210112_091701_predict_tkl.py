@@ -9,7 +9,7 @@ import tensorflow as tf
 from _run.run_common_tpu import create_tpu, delete_tpu
 from image_keras.tf.utils.images import decode_png
 from keras.utils import plot_model
-from losses.losses_bg_weighted_cce import BgWeightedCrossentropy
+from losses.losses_bg_weighted_cce import BgWeightedCategoricalCrossentropy
 from ref_local_tracking.processings.tf.preprocessing import (
     tf_color_to_random_map,
     tf_input_ref_label_1_preprocessing_function,
@@ -171,7 +171,7 @@ Predict Data Folder: {}/{}
         model = tf.keras.models.load_model(
             model_weight_path,
             custom_objects={
-                "BgWeightedCrossentropy": BgWeightedCrossentropy(
+                "BgWeightedCrossentropy": BgWeightedCategoricalCrossentropy(
                     bg_to_bg_weight=1.0,
                     bg_to_fg_weight=4.0,
                     fg_to_bg_weight=4.0,

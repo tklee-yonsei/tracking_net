@@ -46,7 +46,7 @@ class RefLocalLayer4Test(tf.test.TestCase):
         )([img, main_value, ref, ref_value])
         print(ref_local)
 
-        ref_local = RefLocal4(
-            bin_size=bin_size, k_size=k_size, mode="dot", aggregate_mode="argmax"
-        )([img, main_value, ref, ref_value])
-        print(ref_local)
+        # ref_local = RefLocal4(
+        #     bin_size=bin_size, k_size=k_size, mode="dot", aggregate_mode="argmax"
+        # )([img, main_value, ref, ref_value])
+        # print(ref_local)
