@@ -127,6 +127,11 @@ if __name__ == "__main__":
         action="store_true",
         help="With this option, U-Net model would be freeze for training.",
     )
+    parser.add_argument(
+        "--plot_sample",
+        action="store_true",
+        help="With this option, it will plot sample images.",
+    )
     args = parser.parse_args()
 
     # 1-2) Get variables
@@ -141,6 +146,7 @@ if __name__ == "__main__":
     training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
     pretrained_unet_path: Optional[str] = args.pretrained_unet_path
     freeze_unet_model: bool = args.freeze_unet_model
+    plot_sample: bool = args.plot_sample
 
     # 1-3) continuous
     continuous_model_name: Optional[str] = args.continuous_model_name
@@ -235,11 +241,11 @@ Training Data Folder: {}/{}
     f = open(tmp_info, "w")
     f.write(info)
     f.close()
-    # upload_blob(
-    #     bucket_name,
-    #     tmp_info,
-    #     os.path.join("data", training_id, os.path.basename(tmp_info)),
-    # )
+    upload_blob(
+        bucket_name,
+        tmp_info,
+        os.path.join("data", training_id, os.path.basename(tmp_info)),
+    )
 
     # 3. Model compile --------
     # with strategy.scope():
@@ -370,47 +376,52 @@ Training Data Folder: {}/{}
     training_samples = len(training_dataset) * training_batch_size
 
     # Training dataset sample ploting
-    def ratio_img_to_img(img):
-        img = img * 255
-        return tf.cast(img, tf.uint8)
+    if plot_sample:
 
-    def ratio_img_to_np_img(img):
-        return ratio_img_to_img(img).numpy()
+        def ratio_img_to_img(img):
+            img = img * 255
+            return tf.cast(img, tf.uint8)
 
-    def bin_img_to_np_arr_img(img, bin_num):
-        imgs = ratio_img_to_img(img)
-        bin_imgs = []
-        for bin_index in range(bin_num):
-            bin_img = imgs[:, :, bin_index : bin_index + 1]
-            bin_imgs.append(bin_img.numpy())
-        return bin_imgs
+        def ratio_img_to_np_img(img):
+            return ratio_img_to_img(img).numpy()
 
-    ratio_img_to_np_arr_img = lambda img: [ratio_img_to_np_img(img)]
-    bin_img_to_np_arr_img_default_bin = lambda img: bin_img_to_np_arr_img(img, bin_size)
+        def bin_img_to_np_arr_img(img, bin_num):
+            imgs = ratio_img_to_img(img)
+            bin_imgs = []
+            for bin_index in range(bin_num):
+                bin_img = imgs[:, :, bin_index : bin_index + 1]
+                bin_imgs.append(bin_img.numpy())
+            return bin_imgs
 
-    input_images, output_images = take_from_dataset_at_all_batch(
-        training_dataset,
-        (
-            [
-                ratio_img_to_np_arr_img,
-                ratio_img_to_np_arr_img,
-                bin_img_to_np_arr_img_default_bin,
-                bin_img_to_np_arr_img_default_bin,
-                bin_img_to_np_arr_img_default_bin,
-                bin_img_to_np_arr_img_default_bin,
-            ],
-            [bin_img_to_np_arr_img_default_bin],
-        ),
-    )
-
-    for b_i in range(training_batch_size):
-        print("Sample ploting {}/{}...".format(b_i + 1, training_batch_size))
-        plot_samples(
-            input_images[b_i] + output_images[b_i],
-            "sample_img_{}.png".format(b_i),
-            4,
-            4,
+        ratio_img_to_np_arr_img = lambda img: [ratio_img_to_np_img(img)]
+        bin_img_to_np_arr_img_default_bin = lambda img: bin_img_to_np_arr_img(
+            img, bin_size
         )
+
+        input_images, output_images = take_from_dataset_at_all_batch(
+            training_dataset,
+            (
+                [
+                    ratio_img_to_np_arr_img,
+                    ratio_img_to_np_arr_img,
+                    bin_img_to_np_arr_img_default_bin,
+                    bin_img_to_np_arr_img_default_bin,
+                    bin_img_to_np_arr_img_default_bin,
+                    bin_img_to_np_arr_img_default_bin,
+                ],
+                [bin_img_to_np_arr_img_default_bin],
+            ),
+        )
+
+        for b_i in range(training_batch_size):
+            print("Sample ploting {}/{}...".format(b_i + 1, training_batch_size))
+            filename = "/tmp/sample_img_{}.png".format(b_i)
+            plot_samples(input_images[b_i] + output_images[b_i], filename, 4, 4)
+            upload_blob(
+                bucket_name,
+                filename,
+                os.path.join("data", training_id, os.path.basename(filename)),
+            )
 
     # 4-2) Validation dataset
     # val_main_image_file_names = tf.data.Dataset.list_files(
