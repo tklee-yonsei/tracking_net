@@ -37,7 +37,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import EarlyStopping, ModelCheckpoint
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
-from utils.plot_dataset import take_from_dataset_at_all_batch
+from utils.plot_dataset import plot_samples, take_from_dataset_at_all_batch
 from utils.run_setting import get_run_id
 from utils.tf_images import decode_png
 
@@ -369,15 +369,15 @@ Training Data Folder: {}/{}
     )
     training_samples = len(training_dataset) * training_batch_size
 
+    # Training dataset sample ploting
     def ratio_img_to_img(img):
         img = img * 255
         return tf.cast(img, tf.int8)
 
     def ratio_img_to_np_img(img):
-        img = ratio_img_to_img(img)
-        return img.numpy()
+        return ratio_img_to_img(img).numpy()
 
-    def bin_img_to_img(img, bin_num):
+    def bin_img_to_np_arr_img(img, bin_num):
         imgs = ratio_img_to_img(img)
         bin_imgs = []
         for bin_index in range(bin_num):
@@ -385,22 +385,32 @@ Training Data Folder: {}/{}
             bin_imgs.append(bin_img.numpy())
         return bin_imgs
 
-    bin_img_to_np_img_default_bin = lambda img: bin_img_to_img(img, bin_size)
+    ratio_img_to_np_arr_img = lambda img: [ratio_img_to_np_img(img)]
+    bin_img_to_np_arr_img_default_bin = lambda img: bin_img_to_np_arr_img(img, bin_size)
 
     input_images, output_images = take_from_dataset_at_all_batch(
         training_dataset,
         (
             [
-                ratio_img_to_np_img,
-                ratio_img_to_np_img,
-                bin_img_to_np_img_default_bin,
-                bin_img_to_np_img_default_bin,
-                bin_img_to_np_img_default_bin,
-                bin_img_to_np_img_default_bin,
+                ratio_img_to_np_arr_img,
+                ratio_img_to_np_arr_img,
+                bin_img_to_np_arr_img_default_bin,
+                bin_img_to_np_arr_img_default_bin,
+                bin_img_to_np_arr_img_default_bin,
+                bin_img_to_np_arr_img_default_bin,
             ],
-            [bin_img_to_np_img_default_bin],
+            [bin_img_to_np_arr_img_default_bin],
         ),
     )
+
+    for b_i in range(training_batch_size):
+        print("Sample ploting {}/{}...".format(b_i + 1, training_batch_size))
+        plot_samples(
+            input_images[b_i] + output_images[b_i],
+            "sample_img_{}.png".format(b_i),
+            4,
+            4,
+        )
 
     # 4-2) Validation dataset
     # val_main_image_file_names = tf.data.Dataset.list_files(
