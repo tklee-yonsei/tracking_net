@@ -372,7 +372,7 @@ Training Data Folder: {}/{}
     # Training dataset sample ploting
     def ratio_img_to_img(img):
         img = img * 255
-        return tf.cast(img, tf.int8)
+        return tf.cast(img, tf.uint8)
 
     def ratio_img_to_np_img(img):
         return ratio_img_to_img(img).numpy()
