@@ -38,6 +38,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import EarlyStopping, ModelCheckpoint
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
+from utils.plot_dataset import plot_samples, take_from_dataset_at_all_batch
 from utils.run_setting import get_run_id
 from utils.tf_images import decode_png
 
@@ -127,6 +128,11 @@ if __name__ == "__main__":
         action="store_true",
         help="With this option, U-Net model would be freeze for training.",
     )
+    parser.add_argument(
+        "--plot_sample",
+        action="store_true",
+        help="With this option, it will plot sample images.",
+    )
     args = parser.parse_args()
 
     # 1-2) Get variables
@@ -141,6 +147,7 @@ if __name__ == "__main__":
     training_id: str = "_training__model_{}__run_{}".format(model_name, run_id)
     pretrained_unet_path: Optional[str] = args.pretrained_unet_path
     freeze_unet_model: bool = args.freeze_unet_model
+    plot_sample: bool = args.plot_sample
 
     # 1-3) continuous
     continuous_model_name: Optional[str] = args.continuous_model_name
@@ -342,13 +349,12 @@ Training Data Folder: {}/{}
             lambda input_imgs, output_label, output_bw_label: (
                 input_imgs,
                 tf_color_to_random_map(input_imgs[5], output_label[0], bin_size, 1),
-                output_label,
                 output_bw_label,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, color_info, output_label, output_bw_label: (
+            lambda input_imgs, color_info, output_bw_label: (
                 (
                     tf_main_image_preprocessing_sequence(input_imgs[0]),
                     tf_ref_image_preprocessing_sequence(input_imgs[1]),
@@ -376,6 +382,54 @@ Training Data Folder: {}/{}
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
     training_samples = len(training_dataset) * training_batch_size
+
+    # Training dataset sample ploting
+    if plot_sample:
+
+        def ratio_img_to_img(img):
+            img = img * 255
+            return tf.cast(img, tf.uint8)
+
+        def ratio_img_to_np_img(img):
+            return ratio_img_to_img(img).numpy()
+
+        def bin_img_to_np_arr_img(img, bin_num):
+            imgs = ratio_img_to_img(img)
+            bin_imgs = []
+            for bin_index in range(bin_num):
+                bin_img = imgs[:, :, bin_index : bin_index + 1]
+                bin_imgs.append(bin_img.numpy())
+            return bin_imgs
+
+        ratio_img_to_np_arr_img = lambda img: [ratio_img_to_np_img(img)]
+        bin_img_to_np_arr_img_default_bin = lambda img: bin_img_to_np_arr_img(
+            img, bin_size
+        )
+
+        input_images, output_images = take_from_dataset_at_all_batch(
+            training_dataset,
+            (
+                [
+                    ratio_img_to_np_arr_img,
+                    ratio_img_to_np_arr_img,
+                    bin_img_to_np_arr_img_default_bin,
+                    bin_img_to_np_arr_img_default_bin,
+                    bin_img_to_np_arr_img_default_bin,
+                    bin_img_to_np_arr_img_default_bin,
+                ],
+                [ratio_img_to_np_arr_img],
+            ),
+        )
+
+        for b_i in range(training_batch_size):
+            print("Sample ploting {}/{}...".format(b_i + 1, training_batch_size))
+            filename = "/tmp/sample_img_{}.png".format(b_i)
+            plot_samples(input_images[b_i] + output_images[b_i], filename, 4, 4)
+            upload_blob(
+                bucket_name,
+                filename,
+                os.path.join("data", training_id, os.path.basename(filename)),
+            )
 
     # 4-2) Validation dataset
     val_main_image_file_names = tf.data.Dataset.list_files(
