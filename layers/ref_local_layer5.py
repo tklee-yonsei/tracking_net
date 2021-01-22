@@ -21,6 +21,28 @@ class RefLocal5(Layer):
         self.h_size = input_shape[0][1]
         self.channels_size = input_shape[0][-1]
 
+        self.conv_main = Conv2D(
+            filters=self.intermediate_dim,
+            kernel_size=1,
+            padding="same",
+            use_bias=False,
+            kernel_initializer="he_normal",
+        )
+        self.conv_ref = Conv2D(
+            filters=self.intermediate_dim,
+            kernel_size=1,
+            padding="same",
+            use_bias=False,
+            kernel_initializer="he_normal",
+        )
+        self.g_conv = Conv2D(
+            self.channels_size,
+            1,
+            padding="same",
+            use_bias=False,
+            kernel_initializer="he_normal",
+        )
+
     def get_config(self):
         config = super(RefLocal5, self).get_config()
         config.update(
@@ -40,20 +62,8 @@ class RefLocal5(Layer):
         main = inputs[0]
         ref = inputs[1]
 
-        conv_main = Conv2D(
-            filters=self.intermediate_dim,
-            kernel_size=1,
-            padding="same",
-            use_bias=False,
-            kernel_initializer="he_normal",
-        )(main)
-        conv_ref = Conv2D(
-            filters=self.intermediate_dim,
-            kernel_size=1,
-            padding="same",
-            use_bias=False,
-            kernel_initializer="he_normal",
-        )(ref)
+        conv_main = self.conv_main(main)
+        conv_ref = self.conv_ref(ref)
 
         # 1) f path
         ref_stacked = ExtractPatchLayer(k_size=self.k_size)(conv_ref)
@@ -77,13 +87,7 @@ class RefLocal5(Layer):
             )
 
         # 2) g path
-        g = Conv2D(
-            self.channels_size,
-            1,
-            padding="same",
-            use_bias=False,
-            kernel_initializer="he_normal",
-        )(attn)
+        g = self.g_conv(attn)
         # y = tf.einsum("bhwkk,bhwd->bhwd", attn, g)
         # y = tf.einsum("bhwkk,bkkd->bhwd", attn, g)
         # y = dot([f, g], axes=[2, 1])
