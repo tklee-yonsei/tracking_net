@@ -62,7 +62,7 @@ def ref_local_tracking_model_020(
     input_ref_label_shape: Tuple[int, int, int] = (256, 256, 30),
     input_main_image_name: str = "main_image",
     input_ref_image_name: str = "ref_image",
-    input_ref_label_name: str = "bin_label_1",
+    input_ref_label_name: str = "ref_label",
     output_name: str = "output",
     bin_num: int = 30,
     alpha: float = 1.0,
@@ -134,7 +134,8 @@ def ref_local_tracking_model_020(
     main1 = unet_l4_skip_main_model_1(main_image_input)
     ref1 = unet_l4_skip_ref_model_1(ref_image_input)
     diff_local1: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=256)(
-        [main1, ref1]
+        # [main1, ref1]
+        [ref1, main1]
     )
     up1: Layer = unet_base_up_sampling(256)(diff_local1)
 
@@ -142,7 +143,8 @@ def ref_local_tracking_model_020(
     main2 = unet_l4_skip_main_model_2(main_image_input)
     ref2 = unet_l4_skip_ref_model_2(ref_image_input)
     diff_local2: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=128)(
-        [main2, ref2]
+        # [main2, ref2]
+        [ref2, main2]
     )
     merge1 = concatenate([diff_local2, up1])
     conv1: Layer = unet_base_conv_2d(256)(merge1)
@@ -153,7 +155,8 @@ def ref_local_tracking_model_020(
     main3 = unet_l4_skip_main_model_3(main_image_input)
     ref3 = unet_l4_skip_ref_model_3(ref_image_input)
     diff_local3: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=64)(
-        [main3, ref3]
+        # [main3, ref3]
+        [ref3, main3]
     )
     merge2 = concatenate([diff_local3, up2])
     conv2: Layer = unet_base_conv_2d(128)(merge2)
@@ -164,7 +167,8 @@ def ref_local_tracking_model_020(
     main4 = unet_l4_skip_main_model_4(main_image_input)
     ref4 = unet_l4_skip_ref_model_4(ref_image_input)
     diff_local4: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=32)(
-        [main4, ref4]
+        # [main4, ref4]
+        [ref4, main4]
     )
     merge3 = concatenate([diff_local4, up3])
     conv3: Layer = unet_base_conv_2d(64)(merge3)
