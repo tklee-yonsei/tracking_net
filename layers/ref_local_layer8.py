@@ -5,38 +5,40 @@ from image_keras.tf.keras.layers.extract_patch_layer import ExtractPatchLayer
 from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
 
 
-class RefLocal5(Layer):
+class RefLocal8(Layer):
+    """
+    Ref Local layer includes intermediate conv layer.
+    """
+
     def __init__(
-        self, intermediate_dim: int, k_size: int = 5, mode: str = "dot", **kwargs
+        self,
+        intermediate_dim: Optional[int] = None,
+        k_size: int = 5,
+        mode: str = "dot",
+        **kwargs,
     ):
         super().__init__(**kwargs)
+        self.input_intermediate_dim = intermediate_dim
         self.k_size = k_size
-        self.intermediate_dim = intermediate_dim
         self.mode = mode
 
     def build(self, input_shape):
-        self.custom_input_shape = input_shape
-        self.custom_shape = input_shape[0]
-        self.batch_size = input_shape[0][0]
-        self.h_size = input_shape[0][1]
-        self.channels_size = input_shape[0][-1]
+        self.input_main_batch_size = input_shape[0][0]
+        self.input_main_h_size = input_shape[0][1]
+        self.input_main_channels_size = input_shape[0][-1]
+        self.input_intermediate_dim = (
+            self.input_intermediate_dim or self.input_main_channels_size
+        )
 
         self.conv_main = Conv2D(
-            filters=self.intermediate_dim,
+            filters=self.input_intermediate_dim,
             kernel_size=1,
             padding="same",
             use_bias=False,
             kernel_initializer="he_normal",
         )
         self.conv_ref = Conv2D(
-            filters=self.intermediate_dim,
-            kernel_size=1,
-            padding="same",
-            use_bias=False,
-            kernel_initializer="he_normal",
-        )
-        self.g_conv = Conv2D(
-            filters=self.channels_size,
+            filters=self.input_intermediate_dim,
             kernel_size=1,
             padding="same",
             use_bias=False,
@@ -44,10 +46,10 @@ class RefLocal5(Layer):
         )
 
     def get_config(self):
-        config = super(RefLocal5, self).get_config()
+        config = super(RefLocal8, self).get_config()
         config.update(
             {
-                "intermediate_dim": self.intermediate_dim,
+                "intermediate_dim": self.input_intermediate_dim,
                 "k_size": self.k_size,
                 "mode": self.mode,
             }
@@ -65,17 +67,27 @@ class RefLocal5(Layer):
         conv_main = self.conv_main(main)
         conv_ref = self.conv_ref(ref)
 
-        # 1) f path
+        # Attention
         ref_stacked = ExtractPatchLayer(k_size=self.k_size)(conv_ref)
         ref_stacked = Reshape(
-            (self.h_size, self.h_size, self.k_size * self.k_size, self.intermediate_dim)
+            (
+                self.input_main_h_size,
+                self.input_main_h_size,
+                self.k_size * self.k_size,
+                self.input_intermediate_dim,
+            )
         )(ref_stacked)
+
         if self.mode == "dot":
             attn = tf.einsum("bhwc,bhwkc->bhwk", conv_main, ref_stacked)
             attn = Softmax()(attn)
-            # attn = Reshape(
-            #     (-1, tf.shape(attn)[1], tf.shape(attn)[2], self.k_size, self.k_size)
-            # )(attn)
+            # attn = tf.nn.softmax(attn, axis=-1)
+        elif self.mode == "norm_dot":
+            ref_main = tf.concat([ref_stacked, tf.expand_dims(main, -2)], axis=-2)
+            attn = tf.einsum("bhwc,bhwkc->bhwk", main, ref_main)
+            attn = Softmax()(attn)
+            # attn = tf.nn.softmax(attn, axis=-1)
+            attn = attn[:, :, :, :-1]
         elif self.mode == "gaussian":
             attn = tf.math.exp(
                 -tf.reduce_sum(tf.math.squared_difference(main, ref_stacked), axis=-1)
@@ -83,14 +95,7 @@ class RefLocal5(Layer):
             raise NotImplementedError("gaussian model has not been implemented yet")
         else:
             raise ValueError(
-                "`mode` value is not valid. Should be one of 'dot', 'gaussian'."
+                "`mode` value is not valid. Should be one of 'dot', 'norm_dot', 'gaussian'."
             )
 
-        # 2) g path
-        g = self.g_conv(attn)
-        # y = tf.einsum("bhwkk,bhwd->bhwd", attn, g)
-        # y = tf.einsum("bhwkk,bkkd->bhwd", attn, g)
-        # y = dot([f, g], axes=[2, 1])
-        # g = Reshape((-1, self.intermediate_dim))(g)
-
-        return g
+        return attn
