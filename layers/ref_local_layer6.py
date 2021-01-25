@@ -6,6 +6,11 @@ from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
 
 
 class RefLocal6(Layer):
+    """
+    Deprecated.
+
+    """
+
     def __init__(
         self,
         bin_size: int,

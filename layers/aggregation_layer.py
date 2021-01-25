@@ -1,13 +1,11 @@
-from typing import Optional
-
 import tensorflow as tf
 from image_keras.tf.keras.layers.extract_patch_layer import ExtractPatchLayer
-from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
+from tensorflow.keras.layers import Layer, Reshape
 
 
 class AggregationLayer(Layer):
     """
-    Ref Local layer includes intermediate conv layer.
+    Aggregation Layer to collect result from neighbor probability to bins.
     """
 
     def __init__(

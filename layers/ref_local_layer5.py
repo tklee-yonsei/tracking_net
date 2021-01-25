@@ -6,6 +6,11 @@ from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
 
 
 class RefLocal5(Layer):
+    """
+    Ref Local layer includes intermediate conv layer.
+    With Non local like aggregation.
+    """
+
     def __init__(
         self, intermediate_dim: int, k_size: int = 5, mode: str = "dot", **kwargs
     ):

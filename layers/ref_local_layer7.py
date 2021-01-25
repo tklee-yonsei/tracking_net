@@ -8,6 +8,7 @@ from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
 class RefLocal7(Layer):
     """
     Ref Local layer includes intermediate conv layer.
+    With Aggregation Layer.
     """
 
     def __init__(
