@@ -32,7 +32,7 @@ def setup_continuous_training(
         continuous_run_id: str = os.path.basename(continuous_model_name)
         if continuous_run_id.find(".") != -1:
             continuous_run_id = continuous_run_id[: continuous_run_id.find(".")]
-        training_id = "_" + continuous_run_id
+        training_id = continuous_run_id
     return training_id
 
 
