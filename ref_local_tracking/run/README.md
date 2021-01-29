@@ -23,7 +23,10 @@ python3 ref_local_tracking/run/train_tpu.py \
 --model_name "ref_local_tracking_model_011" \
 --run_id "leetaekyu_20210109_012720" \
 --tpu_name "leetaekyu-1-trainer" \
---with_shared_unet
+--with_shared_unet \
+--optimizer "adam1" \
+--losses "categorical_crossentropy",1.0 \
+--metrics "categorical_accuracy"
 ```
 
 ```shell
@@ -53,7 +56,10 @@ python3 ref_local_tracking/run/train_tpu.py \
 --pretrained_unet_path "gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974" \
 --plot_sample \
 --with_shared_unet \
---freeze_unet_model
+--freeze_unet_model \
+--optimizer "adam1" \
+--losses "categorical_crossentropy",1.0 \
+--metrics "categorical_accuracy"
 ```
 
 ### 1.2. `train2_tpu.py`
@@ -105,5 +111,29 @@ https://console.cloud.google.com/storage/browser/cell_dataset/save/weights?prefi
 Download trained weights from Google Cloud Storage(GCS).
 
 ```shell
-gsutil cp -r gs://cell_dataset/save/weights/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720.epoch_01-val_loss_0.258-val_acc_0.956 .
+gsutil cp -r gs://cell_dataset/save/weights/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720.epoch_01 .
 ```
+
+### 2.3. Tensorboard logs
+
+Show Tensorboard log files from Google Cloud Storage(GCS).
+
+```http
+https://console.cloud.google.com/storage/browser/cell_dataset/save/tf_logs?prefix=training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
+```
+
+Download Tensorboard log files from Google Cloud Storage(GCS).
+
+```shell
+gsutil cp -r gs://cell_dataset/save/tf_logs/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720 .
+```
+
+Run tensorboard log. (at download folder)
+
+```shell
+tensorboard --logdir=.
+```
+
+## 2. Test
+
+## 3. Predict

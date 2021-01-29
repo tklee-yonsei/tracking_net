@@ -4,17 +4,21 @@ import sys
 sys.path.append(os.getcwd())
 
 from argparse import ArgumentParser
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import tensorflow as tf
 from _run.run_common_tpu import (
     check_all_exists_or_not,
     create_tpu,
     delete_tpu,
+    loss_coords,
     setup_continuous_training,
 )
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from keras.utils import plot_model
+from ref_local_tracking.configs.losses import RefLoss
+from ref_local_tracking.configs.metrics import RefMetric
+from ref_local_tracking.configs.optimizers import RefOptimizer
 from ref_local_tracking.models.backbone.unet_l4 import unet_l4
 from ref_local_tracking.run.dataset import (
     get_ref_tracking_dataset_for_cell_dataset,
@@ -22,9 +26,6 @@ from ref_local_tracking.run.dataset import (
     plot_and_upload_dataset,
 )
 from tensorflow.keras.callbacks import Callback, History, TensorBoard
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.metrics import CategoricalAccuracy
-from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import EarlyStopping, ModelCheckpoint
 from utils.gc_storage import upload_blob
 from utils.gc_tpu import tpu_initialize
@@ -141,6 +142,34 @@ if __name__ == "__main__":
         action="store_true",
         help="With this option, U-Net model would be freeze for training.",
     )
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        help="Optimizer. One of 'adam1' \
+            ex) 'adam1'",
+    )
+    parser.add_argument(
+        "--losses",
+        type=loss_coords,
+        action="append",
+        help="Loss and weight pair. "
+        "Loss should be exist in `ref_local_tracking.configs.losses`. "
+        "- Case 1. 1 output  : `--losses 'categorical_crossentropy',1.0`"
+        "- Case 2. 2 outputs : `--losses 'categorical_crossentropy',0.8 --losses 'weighted_cce',0.2`",
+    )
+    parser.add_argument(
+        "--metrics",
+        type=str,
+        nargs="+",
+        action="append",
+        help="Metrics. "
+        "Metric should be exist in `ref_local_tracking.configs.metrics`."
+        "- Case 1. 1 output, 1 metric  : `--metrics 'categorical_accuracy'`"
+        "- Case 2. 1 output, 2 metric  : `--metrics 'categorical_accuracy' 'categorical_accuracy'`"
+        "- Case 3. 2 output, (1, 1) metric  : `--metrics 'categorical_accuracy' --metrics 'categorical_accuracy'`"
+        "- Case 4. 2 output, (1, 0) metric  : `--metrics categorical_accuracy --metrics none`"
+        "- Case 5. 2 output, (2, 0) metric  : `--metrics categorical_accuracy categorical_accuracy --metrics none`",
+    )
     args = parser.parse_args()
 
     # 1-2) Set variables
@@ -161,6 +190,12 @@ if __name__ == "__main__":
     with_shared_unet: bool = args.with_shared_unet
     plot_sample: bool = args.plot_sample
     run_id: str = args.run_id or get_run_id()
+    # optimizer, losses, metrics
+    optimizer: str = args.optimizer or RefOptimizer.get_default()
+    loss_weight_tuple_list: List[Tuple[str, float]] = args.losses or [
+        (RefLoss.get_default(), 1.0)
+    ]
+    metrics_list: List[List[str]] = args.metrics or [[RefMetric.get_default()]]
     # processing
     training_batch_size: int = batch_size
     val_batch_size: int = batch_size
@@ -276,11 +311,36 @@ Training Data Folder: {}/{}
         if continuous_model_name is not None:
             model = tf.keras.models.load_model(continuous_model_name)
 
+        model_optimizer = RefOptimizer(optimizer).get_optimizer()
+        model_loss_list = list(
+            map(lambda el: RefLoss(el[0]).get_loss(), loss_weight_tuple_list)
+        )
+        model_loss_weight_list = list(map(lambda el: el[1], loss_weight_tuple_list))
+        model_metrics_list = [
+            list(
+                filter(
+                    lambda v: v, [RefMetric(metric).get_metric() for metric in metrics]
+                )
+            )
+            for metrics in metrics_list
+        ]
+        output_keys = model.output_names
+        if len(loss_weight_tuple_list) != len(output_keys):
+            raise ValueError(
+                "Number of `--losses` option(s) should be {}.".format(len(output_keys))
+            )
+        if len(metrics_list) != len(output_keys):
+            raise ValueError(
+                "Number of `--metrics` option(s) should be {}.".format(len(output_keys))
+            )
+        model_loss_dict = dict(zip(output_keys, model_loss_list))
+        model_loss_weight_dict = dict(zip(output_keys, model_loss_weight_list))
+        model_metrics_dict = dict(zip(output_keys, model_metrics_list))
         model.compile(
-            optimizer=Adam(lr=1e-4),
-            loss=[CategoricalCrossentropy()],
-            loss_weights=[1.0],
-            metrics=[CategoricalAccuracy(name="accuracy")],
+            optimizer=model_optimizer,
+            loss=model_loss_dict,
+            loss_weights=model_loss_weight_dict,
+            metrics=model_metrics_dict,
         )
         tmp_plot_model_img_path = "/tmp/model.png"
         plot_model(
@@ -331,18 +391,8 @@ Training Data Folder: {}/{}
     val_steps: int = val_samples // val_batch_size
 
     # callbacks
-    val_metric = model.compiled_metrics._metrics[-1].name
-    val_checkpoint_metric = "val_" + val_metric
     model_checkpoint: Callback = ModelCheckpoint(
-        os.path.join(
-            save_weights_folder,
-            training_id
-            + ".epoch_{epoch:02d}-val_loss_{val_loss:.3f}-"
-            + val_checkpoint_metric
-            + "_{"
-            + val_checkpoint_metric
-            + ":.3f}",
-        ),
+        os.path.join(save_weights_folder, training_id + ".epoch_{epoch:02d}"),
         verbose=1,
     )
     early_stopping_patience: int = training_epochs // (10 * val_freq)
