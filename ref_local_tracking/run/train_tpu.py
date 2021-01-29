@@ -332,11 +332,7 @@ Training Data Folder: {}/{}
 
     # callbacks
     val_metric = model.compiled_metrics._metrics[-1].name
-    print("val_metric----")
-    print(val_metric)
     val_checkpoint_metric = "val_" + val_metric
-    print("val_checkpoint_metric----")
-    print(val_checkpoint_metric)
     model_checkpoint: Callback = ModelCheckpoint(
         os.path.join(
             save_weights_folder,
