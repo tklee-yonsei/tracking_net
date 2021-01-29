@@ -20,7 +20,7 @@ def loss_coords(s):
         x, y = s.split(",")
         return (x, float(y))
     except:
-        raise argparse.ArgumentTypeError("Coordinates must be x, y")
+        raise argparse.ArgumentTypeError("Loss must be x,y")
 
 
 def setup_continuous_training(
