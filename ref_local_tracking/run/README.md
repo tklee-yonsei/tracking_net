@@ -1,8 +1,8 @@
 # Ref Tracking
 
-## Training
+## 1. Training
 
-### `train_tpu.py`
+### 1.1. `train_tpu.py`
 
 This is a trainer on TPU for Ref Tracking model which has following inputs and outputs.
 
@@ -56,7 +56,7 @@ python3 ref_local_tracking/run/train_tpu.py \
 --freeze_unet_model
 ```
 
-### `train2_tpu.py`
+### 1.2. `train2_tpu.py`
 
 This is a trainer on TPU for Ref Tracking model which has following inputs and outputs.
 
@@ -76,4 +76,34 @@ python ref_local_tracking/run/training_tpu.py \
 --run_id "leetaekyu_20210109_012720" \
 --pretrained_unet_path "gs://cell_dataset/save/weights/training__model_unet_l4__run_leetaekyu_20210108_221742.epoch_78-val_loss_0.179-val_accuracy_0.974" \
 --freeze_unet_model
+```
+
+## 2. Training Result
+
+### 2.1. Training result
+
+Download training result from Google Cloud Storage(GCS).
+
+```shell
+gsutil cp -r gs://cell_dataset/data/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720 .
+```
+
+Show training result from Google Cloud Storage(GCS).
+
+```http
+https://console.cloud.google.com/storage/browser/cell_dataset/data/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
+```
+
+### 2.2. Trained weights
+
+Show trained weights from Google Cloud Storage(GCS).
+
+```http
+https://console.cloud.google.com/storage/browser/cell_dataset/save/weights?prefix=training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
+```
+
+Download trained weights from Google Cloud Storage(GCS).
+
+```shell
+gsutil cp -r gs://cell_dataset/save/weights/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720.epoch_01-val_loss_0.258-val_acc_0.956 .
 ```
