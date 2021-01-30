@@ -11,3 +11,7 @@ class RefOptimizer(Enum):
             return Adam(lr=1e-4)
         else:
             return Adam(lr=1e-4)
+
+    @staticmethod
+    def get_default() -> str:
+        return RefOptimizer.adam1.value

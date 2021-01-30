@@ -15,12 +15,12 @@ from tensorflow.keras.models import Model
 
 def ref_local_tracking_model_010(
     pre_trained_unet_l4_model: Model,
-    input_main_image_shape: Tuple[int, int, int],
-    input_ref_image_shape: Tuple[int, int, int],
-    input_ref_label_1_shape: Tuple[int, int, int],
-    input_ref_label_2_shape: Tuple[int, int, int],
-    input_ref_label_3_shape: Tuple[int, int, int],
-    input_ref_label_4_shape: Tuple[int, int, int],
+    input_main_image_shape: Tuple[int, int, int] = (256, 256, 1),
+    input_ref_image_shape: Tuple[int, int, int] = (256, 256, 1),
+    input_ref_label_1_shape: Tuple[int, int, int] = (32, 32, 30),
+    input_ref_label_2_shape: Tuple[int, int, int] = (64, 64, 30),
+    input_ref_label_3_shape: Tuple[int, int, int] = (128, 128, 30),
+    input_ref_label_4_shape: Tuple[int, int, int] = (256, 256, 30),
     input_main_image_name: str = "main_image",
     input_ref_image_name: str = "ref_image",
     input_ref_label_1_name: str = "bin_label_1",

@@ -49,3 +49,7 @@ class RefLoss(Enum):
             )
         else:
             return CategoricalCrossentropy()
+
+    @staticmethod
+    def get_default() -> str:
+        return RefLoss.cce.value
