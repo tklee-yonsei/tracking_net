@@ -104,25 +104,19 @@ https://console.cloud.google.com/storage/browser/cell_dataset/data/training__mod
 
 #### 1.2.2. Trained weights
 
-Show trained weights from Google Cloud Storage(GCS).
-
-```http
-https://console.cloud.google.com/storage/browser/cell_dataset/save/weights?prefix=training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
-```
-
 Download trained weights from Google Cloud Storage(GCS).
 
 ```shell
 gsutil cp -r gs://cell_dataset/save/weights/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720.epoch_01 .
 ```
 
-#### 1.2.3. Tensorboard logs
-
-Show Tensorboard log files from Google Cloud Storage(GCS).
+Show trained weights from Google Cloud Storage(GCS).
 
 ```http
-https://console.cloud.google.com/storage/browser/cell_dataset/save/tf_logs?prefix=training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
+https://console.cloud.google.com/storage/browser/cell_dataset/save/weights?prefix=training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
 ```
+
+#### 1.2.3. Tensorboard logs
 
 Download Tensorboard log files from Google Cloud Storage(GCS).
 
@@ -134,6 +128,12 @@ Run tensorboard log. (at download folder)
 
 ```shell
 tensorboard --logdir=.
+```
+
+Show Tensorboard log files from Google Cloud Storage(GCS).
+
+```http
+https://console.cloud.google.com/storage/browser/cell_dataset/save/tf_logs?prefix=training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
 ```
 
 ## 2. Test
