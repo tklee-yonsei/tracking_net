@@ -189,3 +189,49 @@ https://console.cloud.google.com/storage/browser/cell_dataset/data/test__model_r
 ```
 
 ## 3. Predict
+
+### 3.1. Run Predict
+
+#### 3.1.1. `predict.py`
+
+This tests for Ref Tracking model which has following inputs and outputs.
+
+- Inputs
+  - Main image
+  - Reference image
+  - Reference label (scale 1/8)
+  - Reference label (scale 1/4)
+  - Reference label (scale 1/2)
+  - Reference label (scale 1)
+- Outputs
+  - Main label
+
+Examples
+
+```shell
+python3 ref_local_tracking/run/predict_on_test_dataset.py \
+--model_name "ref_local_tracking_model_011" \
+--bin_size 30 \
+--batch_size 1 \
+--model_weight_path "gs://cell_dataset/save/weights/training__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720.epoch_01" \
+--run_id "leetaekyu_20210109_012720" \
+--ctpu_zone "us-central1-b" \
+--tpu_name "leetaekyu-1-trainer" \
+--gs_bucket_name "gs://cell_dataset" \
+--predict_dataset_folder "tracking_test" \
+--without_tpu
+```
+
+### 3.2. Predict result
+
+Download predict result from Google Cloud Storage(GCS).
+
+```shell
+gsutil cp -r gs://cell_dataset/data/predict_testset__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720 .
+```
+
+Show predict result from Google Cloud Storage(GCS).
+
+```http
+https://console.cloud.google.com/storage/browser/cell_dataset/data/predict_testset__model_ref_local_tracking_model_011__run_leetaekyu_20210109_012720
+```

@@ -17,6 +17,48 @@ from utils.gc_storage import upload_blob
 from utils.plot_dataset import plot_samples, take_from_dataset_at_all_batch
 
 
+def get_ref_tracking_test_sample_predict_dataset(
+    base_folder: str,
+) -> Tuple[Tuple[str], Tuple[str, str, str]]:
+    """
+    Make ref tracking dataset for `cell_dataset`.
+
+    It consists of:
+    - Sample files: "`base_folder`/framed_sample"
+    - Input
+        - Main image: "`base_folder`/framed_image/zero"
+        - Ref image: "`base_folder`/framed_image/p1"
+        - Ref label: "`base_folder`/framed_label/p1"
+
+    Parameters
+    ----------
+    base_folder : str
+        `cell_dataset` base folder. 
+
+    Returns
+    -------
+    Tuple[Tuple[str], Tuple[str, str, str]]
+        [description]
+    """
+    # Sample
+    sample_folder: str = os.path.join(base_folder, "framed_sample")
+    # [Input] main image
+    input_main_image_folder: str = os.path.join(base_folder, "framed_image", "zero")
+    # [Input] ref image
+    input_ref_image_folder: str = os.path.join(base_folder, "framed_image", "p1")
+    # [Input] ref result label
+    input_ref_result_label_folder: str = os.path.join(base_folder, "framed_label", "p1")
+
+    return (
+        [sample_folder],
+        [
+            input_main_image_folder,
+            input_ref_image_folder,
+            input_ref_result_label_folder,
+        ],
+    )
+
+
 def get_ref_tracking_dataset_for_cell_dataset(
     base_folder: str,
 ) -> Tuple[Tuple[str, str, str], Tuple[str]]:
@@ -150,18 +192,18 @@ def make_preprocessed_tf_dataset(
     return dataset
 
 
-def make_preprocessed_tf_dataset(
+def make_preprocessed_tf_test_sample_dataset(
     batch_size: int,
-    inout_folder_tuple: Tuple[Tuple[str, str, str], Tuple[str]],
+    inout_folder_tuple: Tuple[Tuple[str], Tuple[str, str, str]],
     bin_size: int,
 ):
-    input_main_image_folder = inout_folder_tuple[0][0]
-    input_ref_image_folder = inout_folder_tuple[0][1]
-    input_ref_label_folder = inout_folder_tuple[0][2]
-    output_main_label_folder = inout_folder_tuple[1][0]
+    sample_folder = inout_folder_tuple[0][0]
+    input_main_image_folder = inout_folder_tuple[1][0]
+    input_ref_image_folder = inout_folder_tuple[1][1]
+    input_ref_label_folder = inout_folder_tuple[1][2]
 
     main_image_file_names = tf.data.Dataset.list_files(
-        input_main_image_folder + "/*", shuffle=True, seed=42
+        sample_folder + "/*", shuffle=False
     ).map(get_filename_from_fullpath)
     dataset = (
         main_image_file_names.map(
@@ -174,11 +216,11 @@ def make_preprocessed_tf_dataset(
                     combine_folder_file(input_ref_label_folder, fname),
                     combine_folder_file(input_ref_label_folder, fname),
                 ),
-                (output_main_label_folder + "/" + fname),
+                (fname),
             )
         )
         .map(
-            lambda input_path_names, output_label_fname: (
+            lambda input_path_names, fname: (
                 (
                     decode_png(input_path_names[0]),
                     decode_png(input_path_names[1]),
@@ -187,20 +229,20 @@ def make_preprocessed_tf_dataset(
                     decode_png(input_path_names[4], 3),
                     decode_png(input_path_names[5], 3),
                 ),
-                (decode_png(output_label_fname, 3)),
+                (fname),
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, output_label: (
+            lambda input_imgs, fname: (
                 input_imgs,
-                tf_color_to_random_map(input_imgs[5], output_label[0], bin_size, 1),
-                output_label,
+                tf_color_to_random_map(input_imgs[5], input_imgs[5], bin_size, 1),
+                fname,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         .map(
-            lambda input_imgs, color_info, output_label: (
+            lambda input_imgs, color_info, fname: (
                 (
                     tf_main_image_preprocessing_sequence(input_imgs[0]),
                     tf_ref_image_preprocessing_sequence(input_imgs[1]),
@@ -217,7 +259,8 @@ def make_preprocessed_tf_dataset(
                         input_imgs[5], color_info, bin_size
                     ),
                 ),
-                (tf_output_label_processing(output_label, color_info, bin_size)),
+                color_info,
+                fname,
             ),
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
