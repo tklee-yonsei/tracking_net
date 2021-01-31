@@ -1,60 +1,12 @@
-import functools
-from typing import Optional, Tuple
+from typing import Tuple
 
-from layers.ref_local_layer5 import RefLocal5
-from tensorflow.keras.layers import (
-    Conv2D,
-    Input,
-    Layer,
-    Multiply,
-    UpSampling2D,
-    concatenate,
-)
+from layers.aggregation_layer import AggregationLayer
+from layers.ref_local_layer8 import RefLocal8
+from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concatenate
 from tensorflow.keras.models import Model
 
 
-def compose_left(*functions):
-    return functools.reduce(lambda g, f: lambda x: f(g(x)), functions, lambda x: x)
-
-
-def unet_base_conv_2d(
-    filter_num: int,
-    kernel_size: int = 3,
-    activation="relu",
-    padding="same",
-    kernel_initializer="he_normal",
-    name_optional: Optional[str] = None,
-):
-    return Conv2D(
-        filters=filter_num,
-        kernel_size=kernel_size,
-        activation=activation,
-        padding=padding,
-        kernel_initializer=kernel_initializer,
-        name=name_optional,
-    )
-
-
-def unet_base_up_sampling(
-    filter_num: int,
-    up_size: Tuple[int, int] = (2, 2),
-    kernel_size: int = 3,
-    activation="relu",
-    padding="same",
-    kernel_initializer="he_normal",
-):
-    up_sample_func = UpSampling2D(size=up_size)
-    conv_func = Conv2D(
-        filters=filter_num,
-        kernel_size=kernel_size,
-        activation=activation,
-        padding=padding,
-        kernel_initializer=kernel_initializer,
-    )
-    return compose_left(up_sample_func, conv_func)
-
-
-def ref_local_tracking_model_020(
+def ref_local_tracking_model_021(
     pre_trained_unet_l4_model_main: Model,
     pre_trained_unet_l4_model_ref: Model,
     input_main_image_shape: Tuple[int, int, int] = (256, 256, 1),
@@ -63,10 +15,6 @@ def ref_local_tracking_model_020(
     input_ref_label_2_shape: Tuple[int, int, int] = (64, 64, 30),
     input_ref_label_3_shape: Tuple[int, int, int] = (128, 128, 30),
     input_ref_label_4_shape: Tuple[int, int, int] = (256, 256, 30),
-    input_main_image_name: str = "main_image",
-    input_ref_image_name: str = "ref_image",
-    input_ref_label_name: str = "ref_label",
-    output_name: str = "output",
     bin_num: int = 30,
     alpha: float = 1.0,
 ):
@@ -122,73 +70,90 @@ def ref_local_tracking_model_020(
         outputs=pre_trained_unet_l4_model_ref.get_layer(skip_names_ref[3]).output,
     )
 
-    # 입력
-    main_image_input: Layer = Input(
-        shape=input_main_image_shape, name=input_main_image_name
-    )
-    ref_image_input: Layer = Input(
-        shape=input_ref_image_shape, name=input_ref_image_name
-    )
-    ref_label_input: Layer = Input(
-        shape=input_ref_label_shape, name=input_ref_label_name
-    )
+    # Inputs
+    main_image_input: Layer = Input(shape=input_main_image_shape)
+    ref_image_input: Layer = Input(shape=input_ref_image_shape)
+    ref_label_1_input: Layer = Input(shape=input_ref_label_1_shape)
+    ref_label_2_input: Layer = Input(shape=input_ref_label_2_shape)
+    ref_label_3_input: Layer = Input(shape=input_ref_label_3_shape)
+    ref_label_4_input: Layer = Input(shape=input_ref_label_4_shape)
 
     # First
     main1 = unet_l4_skip_main_model_1(main_image_input)
     ref1 = unet_l4_skip_ref_model_1(ref_image_input)
-    diff_local1: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=256)(
-        # [main1, ref1]
-        [ref1, main1]
+    diff_local1: Layer = RefLocal8(mode="dot", k_size=5, intermediate_dim=256)(
+        [main1, ref1]
     )
-    up1: Layer = unet_base_up_sampling(256)(diff_local1)
+    diff_agg1 = AggregationLayer(
+        bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
+    )([diff_local1, ref_label_1_input])
+    up1: Layer = UpSampling2D(size=8)(diff_agg1)
 
     # Second
     main2 = unet_l4_skip_main_model_2(main_image_input)
     ref2 = unet_l4_skip_ref_model_2(ref_image_input)
-    diff_local2: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=128)(
-        # [main2, ref2]
-        [ref2, main2]
+    diff_local2: Layer = RefLocal8(mode="dot", k_size=5, intermediate_dim=128)(
+        [main2, ref2]
     )
-    merge1 = concatenate([diff_local2, up1])
-    conv1: Layer = unet_base_conv_2d(256)(merge1)
-    conv1: Layer = unet_base_conv_2d(256)(conv1)
-    up2: Layer = unet_base_up_sampling(128)(conv1)
+    diff_agg2 = AggregationLayer(
+        bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
+    )([diff_local2, ref_label_2_input])
+    up2: Layer = UpSampling2D(size=4)(diff_agg2)
 
     # Third
     main3 = unet_l4_skip_main_model_3(main_image_input)
     ref3 = unet_l4_skip_ref_model_3(ref_image_input)
-    diff_local3: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=64)(
-        # [main3, ref3]
-        [ref3, main3]
+    diff_local3: Layer = RefLocal8(mode="dot", k_size=5, intermediate_dim=64)(
+        [main3, ref3]
     )
-    merge2 = concatenate([diff_local3, up2])
-    conv2: Layer = unet_base_conv_2d(128)(merge2)
-    conv2: Layer = unet_base_conv_2d(128)(conv2)
-    up3: Layer = unet_base_up_sampling(64)(conv2)
+    diff_agg3 = AggregationLayer(
+        bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
+    )([diff_local3, ref_label_3_input])
+    up3: Layer = UpSampling2D(size=2)(diff_agg3)
 
     # Fourth
     main4 = unet_l4_skip_main_model_4(main_image_input)
     ref4 = unet_l4_skip_ref_model_4(ref_image_input)
-    diff_local4: Layer = RefLocal5(mode="dot", k_size=5, intermediate_dim=32)(
-        # [main4, ref4]
-        [ref4, main4]
+    diff_local4: Layer = RefLocal8(mode="dot", k_size=5, intermediate_dim=32)(
+        [main4, ref4]
     )
-    merge3 = concatenate([diff_local4, up3])
-    conv3: Layer = unet_base_conv_2d(64)(merge3)
-    conv3: Layer = unet_base_conv_2d(64)(conv3)
+    diff_agg4 = AggregationLayer(
+        bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
+    )([diff_local4, ref_label_4_input])
 
-    # Outputs
-    conv4: Layer = Conv2D(
-        bin_num,
-        1,
-        activation="softmax",
-        name=output_name,
+    merge1 = concatenate([up1, up2, up3, diff_agg4])
+    conv1 = Conv2D(
+        filters=60,
+        kernel_size=3,
+        activation="relu",
         padding="same",
         kernel_initializer="he_normal",
-    )(conv3)
+    )(merge1)
+    conv1 = Conv2D(
+        filters=60,
+        kernel_size=3,
+        activation="relu",
+        padding="same",
+        kernel_initializer="he_normal",
+    )(conv1)
 
-    output: Layer = Multiply()([conv4, ref_label_input])
+    # Outputs
+    conv2 = Conv2D(
+        filters=30,
+        kernel_size=3,
+        activation="softmax",
+        padding="same",
+        kernel_initializer="he_normal",
+    )(conv1)
 
     return Model(
-        inputs=[main_image_input, ref_image_input, ref_label_input], outputs=[output],
+        inputs=[
+            main_image_input,
+            ref_image_input,
+            ref_label_1_input,
+            ref_label_2_input,
+            ref_label_3_input,
+            ref_label_4_input,
+        ],
+        outputs=[conv2],
     )
