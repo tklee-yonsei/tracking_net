@@ -25,10 +25,10 @@ eval $RESULT_MV_CMD
 
 
 MKDIR_TF_LOG_CMD="mkdir -p "
-MKDIR_TF_LOG_CMD+=$RESULT_FOLDER"/tf_log"
+MKDIR_TF_LOG_CMD+="'"$RESULT_FOLDER"/tf_log'"
 eval $MKDIR_TF_LOG_CMD
 
 GET_TF_LOG_CMD="gsutil cp -r "
 GET_TF_LOG_CMD+="gs://cell_dataset/save/tf_logs/"$TRAINING_ID" "
-GET_TF_LOG_CMD+=$RESULT_FOLDER"/tf_log"
+GET_TF_LOG_CMD+="'"$RESULT_FOLDER"/tf_log'"
 eval $GET_TF_LOG_CMD
