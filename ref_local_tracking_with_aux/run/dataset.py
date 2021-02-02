@@ -72,7 +72,7 @@ def get_ref_tracking_test_sample_predict_dataset(
 
 def get_ref_tracking_dataset_for_cell_dataset(
     base_folder: str,
-) -> Tuple[Tuple[str, str, str], Tuple[str]]:
+) -> Tuple[Tuple[str, str, str], Tuple[str, str, str]]:
     """
     Make ref tracking dataset for `cell_dataset`.
 
@@ -81,10 +81,10 @@ def get_ref_tracking_dataset_for_cell_dataset(
         - Main image: "`base_folder`/framed_image/zero"
         - Ref image: "`base_folder`/framed_image/p1"
         - Ref label: "`base_folder`/framed_label/p1"
-        - Main black white label: "`base_folder`/framed_bw_label/zero"
-        - Ref black white label: "`base_folder`/framed_bw_label/p1"
     - Output
         - Main label: "`base_folder`/framed_label/zero"
+        - Main black white label: "`base_folder`/framed_bw_label/zero"
+        - Ref black white label: "`base_folder`/framed_bw_label/p1"
 
     Parameters
     ----------
@@ -102,14 +102,14 @@ def get_ref_tracking_dataset_for_cell_dataset(
     input_ref_image_folder: str = os.path.join(base_folder, "framed_image", "p1")
     # [Input] ref result label
     input_ref_result_label_folder: str = os.path.join(base_folder, "framed_label", "p1")
+    # [Output] main label
+    output_main_label_folder: str = os.path.join(base_folder, "framed_label", "zero")
     # [Aux Output] main black white label
     output_main_bw_label_folder: str = os.path.join(
         base_folder, "framed_bw_label", "zero"
     )
     # [Aux Output] ref black white label
     output_ref_bw_label_folder: str = os.path.join(base_folder, "framed_bw_label", "p1")
-    # [Output] main label
-    output_main_label_folder: str = os.path.join(base_folder, "framed_label", "zero")
 
     return (
         [
@@ -118,9 +118,9 @@ def get_ref_tracking_dataset_for_cell_dataset(
             input_ref_result_label_folder,
         ],
         [
+            output_main_label_folder,
             output_main_bw_label_folder,
             output_ref_bw_label_folder,
-            output_main_label_folder,
         ],
     )
 
@@ -137,7 +137,7 @@ def combine_folder_file(a, b):
 
 def make_preprocessed_tf_dataset(
     batch_size: int,
-    inout_folder_tuple: Tuple[Tuple[str, str, str], Tuple[str]],
+    inout_folder_tuple: Tuple[Tuple[str, str, str], Tuple[str, str, str]],
     bin_size: int,
 ):
     input_main_image_folder = inout_folder_tuple[0][0]

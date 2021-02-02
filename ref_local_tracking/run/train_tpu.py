@@ -133,6 +133,11 @@ if __name__ == "__main__":
         help="With this option, it will plot sample images.",
     )
     parser.add_argument(
+        "--without_early_stopping",
+        action="store_true",
+        help="With this option, training will not early stop.",
+    )
+    parser.add_argument(
         "--with_shared_unet",
         action="store_true",
         help="With this option, model uses shared U-Net.",
@@ -188,6 +193,7 @@ if __name__ == "__main__":
     pretrained_unet_path: Optional[str] = args.pretrained_unet_path
     freeze_unet_model: bool = args.freeze_unet_model
     with_shared_unet: bool = args.with_shared_unet
+    without_early_stopping: bool = args.without_early_stopping
     plot_sample: bool = args.plot_sample
     run_id: str = args.run_id or get_run_id()
     # optimizer, losses, metrics
@@ -400,11 +406,9 @@ Training Data Folder: {}/{}
         patience=early_stopping_patience, verbose=1
     )
     tensorboard_cb: Callback = TensorBoard(log_dir=run_log_dir)
-    callback_list: List[Callback] = [
-        tensorboard_cb,
-        model_checkpoint,
-        early_stopping,
-    ]
+    callback_list: List[Callback] = [tensorboard_cb, model_checkpoint]
+    if not without_early_stopping:
+        callback_list.append(early_stopping)
 
     # continue setting (initial epoch)
     initial_epoch = 0
