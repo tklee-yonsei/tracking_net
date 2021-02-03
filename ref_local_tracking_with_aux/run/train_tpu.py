@@ -16,11 +16,11 @@ from _run.run_common_tpu import (
 )
 from image_keras.tf.keras.metrics.binary_class_mean_iou import binary_class_mean_iou
 from keras.utils import plot_model
-from ref_local_tracking.configs.losses import RefLoss
-from ref_local_tracking.configs.metrics import RefMetric
-from ref_local_tracking.configs.optimizers import RefOptimizer
-from ref_local_tracking.models.backbone.unet_l4 import unet_l4
-from ref_local_tracking.run.dataset import (
+from ref_local_tracking_with_aux.configs.losses import RefLoss
+from ref_local_tracking_with_aux.configs.metrics import RefMetric
+from ref_local_tracking_with_aux.configs.optimizers import RefOptimizer
+from ref_local_tracking_with_aux.models.backbone.unet_l4 import unet_l4
+from ref_local_tracking_with_aux.run.dataset import (
     get_ref_tracking_dataset_for_cell_dataset,
     make_preprocessed_tf_dataset,
     plot_and_upload_dataset,
@@ -42,8 +42,8 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         required=True,
-        help="Should be one in `ref_local_tracking/models` folder and method. \
-            ex) 'ref_local_tracking_model_007'",
+        help="Should be one in `ref_local_tracking_with_aux/models` folder and method. \
+            ex) 'ref_local_tracking_with_aux_model_007'",
     )
     parser.add_argument(
         "--bin_size",
@@ -133,14 +133,14 @@ if __name__ == "__main__":
         help="With this option, it will plot sample images.",
     )
     parser.add_argument(
-        "--without_early_stopping",
-        action="store_true",
-        help="With this option, training will not early stop.",
-    )
-    parser.add_argument(
         "--with_shared_unet",
         action="store_true",
         help="With this option, model uses shared U-Net.",
+    )
+    parser.add_argument(
+        "--without_early_stopping",
+        action="store_true",
+        help="With this option, training will not early stop.",
     )
     parser.add_argument(
         "--freeze_unet_model",
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         type=loss_coords,
         action="append",
         help="Loss and weight pair. "
-        "Loss should be exist in `ref_local_tracking.configs.losses`. "
+        "Loss should be exist in `ref_local_tracking_with_aux.configs.losses`. "
         "- Case 1. 1 output  : `--losses 'categorical_crossentropy',1.0`"
         "- Case 2. 2 outputs : `--losses 'categorical_crossentropy',0.8 --losses 'weighted_cce',0.2`",
     )
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         nargs="+",
         action="append",
         help="Metrics. "
-        "Metric should be exist in `ref_local_tracking.configs.metrics`."
+        "Metric should be exist in `ref_local_tracking_with_aux.configs.metrics`."
         "- Case 1. 1 output, 1 metric  : `--metrics 'categorical_accuracy'`"
         "- Case 2. 1 output, 2 metric  : `--metrics 'categorical_accuracy' 'categorical_accuracy'`"
         "- Case 3. 2 output, (1, 1) metric  : `--metrics 'categorical_accuracy' --metrics 'categorical_accuracy'`"
@@ -192,8 +192,8 @@ if __name__ == "__main__":
     var_validation_dataset_folder: str = args.validation_dataset_folder or "tracking_validation"
     pretrained_unet_path: Optional[str] = args.pretrained_unet_path
     freeze_unet_model: bool = args.freeze_unet_model
-    with_shared_unet: bool = args.with_shared_unet
     without_early_stopping: bool = args.without_early_stopping
+    with_shared_unet: bool = args.with_shared_unet
     plot_sample: bool = args.plot_sample
     run_id: str = args.run_id or get_run_id()
     # optimizer, losses, metrics
@@ -288,7 +288,7 @@ Training Data Folder: {}/{}
     # 3. Model compile --------
     ref_tracking_model_module = load_module(
         module_name=model_name,
-        file_path="ref_local_tracking/models/{}.py".format(model_name),
+        file_path="ref_local_tracking_with_aux/models/{}.py".format(model_name),
     )
     with strategy.scope():
         if pretrained_unet_path is None:
@@ -304,8 +304,8 @@ Training Data Folder: {}/{}
             unet_model2.set_weights(unet_model.get_weights())
 
             model = getattr(ref_tracking_model_module, model_name)(
-                pre_trained_unet_l4_model_main=unet_model,
-                pre_trained_unet_l4_model_ref=unet_model2,
+                unet_l4_model_main=unet_model,
+                unet_l4_model_ref=unet_model2,
                 bin_num=bin_size,
             )
         else:
