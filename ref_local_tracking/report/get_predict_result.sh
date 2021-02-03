@@ -13,7 +13,7 @@ MKDIR_CMD+="'"$RESULT_FOLDER"'"
 eval $MKDIR_CMD
 
 
-GET_RESULT_CMD="gsutil cp -r "
+GET_RESULT_CMD="gsutil -m -o 'GSUtil:parallel_process_count=1' cp -r "
 GET_RESULT_CMD+="gs://cell_dataset/data/"$PREDICT_ID" "
 GET_RESULT_CMD+="'"$RESULT_FOLDER"'"
 eval $GET_RESULT_CMD

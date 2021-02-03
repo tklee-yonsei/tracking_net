@@ -13,7 +13,7 @@ MKDIR_CMD+="'"$RESULT_FOLDER"'"
 eval $MKDIR_CMD
 
 
-GET_RESULT_CMD="gsutil cp -r "
+GET_RESULT_CMD="gsutil -m -o 'GSUtil:parallel_process_count=1' cp -r "
 GET_RESULT_CMD+="gs://cell_dataset/data/"$TRAINING_ID" "
 GET_RESULT_CMD+="'"$RESULT_FOLDER"'"
 eval $GET_RESULT_CMD
@@ -28,7 +28,7 @@ MKDIR_TF_LOG_CMD="mkdir -p "
 MKDIR_TF_LOG_CMD+="'"$RESULT_FOLDER"/tf_log'"
 eval $MKDIR_TF_LOG_CMD
 
-GET_TF_LOG_CMD="gsutil cp -r "
+GET_TF_LOG_CMD="gsutil -m -o 'GSUtil:parallel_process_count=1' cp -r "
 GET_TF_LOG_CMD+="gs://cell_dataset/save/tf_logs/"$TRAINING_ID" "
 GET_TF_LOG_CMD+="'"$RESULT_FOLDER"/tf_log'"
 eval $GET_TF_LOG_CMD
