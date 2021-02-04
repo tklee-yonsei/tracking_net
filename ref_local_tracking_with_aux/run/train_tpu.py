@@ -227,7 +227,7 @@ if __name__ == "__main__":
     create_tpu(tpu_name=tpu_name, ctpu_zone=ctpu_zone)
 
     # 2-2) TPU & Storage setting
-    resolver = tpu_initialize(tpu_address=tpu_name)
+    resolver = tpu_initialize(tpu_address=tpu_name, tpu_zone=ctpu_zone)
     strategy = tf.distribute.TPUStrategy(resolver)
 
     # 2-3) Google bucket folder setting for dataset, tf_log, weights

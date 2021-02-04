@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def tpu_initialize(tpu_address: str):
+def tpu_initialize(tpu_address: str, tpu_zone: str):
     """
     Initializes TPU for TF 2.x training.
 
@@ -15,7 +15,9 @@ def tpu_initialize(tpu_address: str):
     TPUClusterResolver
         A TPUClusterResolver.
     """
-    resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=tpu_address)
+    resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+        tpu=tpu_address, zone=tpu_zone
+    )
     tf.config.experimental_connect_to_cluster(resolver)
     tf.tpu.experimental.initialize_tpu_system(resolver)
     print("All devices: ", tf.config.list_logical_devices("TPU"))

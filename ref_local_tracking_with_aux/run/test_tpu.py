@@ -227,7 +227,7 @@ Test Data Folder: {}/{}
 
     if not without_tpu:
         # 2-1) TPU & Storage setting
-        resolver = tpu_initialize(tpu_address=tpu_name)
+        resolver = tpu_initialize(tpu_address=tpu_name, tpu_zone=ctpu_zone)
         strategy = tf.distribute.TPUStrategy(resolver)
 
         with strategy.scope():
