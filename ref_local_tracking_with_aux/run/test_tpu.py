@@ -245,6 +245,8 @@ Test Data Folder: {}/{}
     test_samples = len(test_dataset) * test_batch_size
 
     # 5. Test --------
+    # TODO: Model의 출력이 여러 개인데, 손실함수, 정확도 하나씩에만 대응하고 있다. 고칠 필요 있음.
+    # ValueError: too many values to unpack (expected 2)
     test_loss, test_acc = model.evaluate(
         test_dataset, workers=8, use_multiprocessing=True
     )
