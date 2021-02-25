@@ -1,15 +1,17 @@
 #!/bin/bash -eu
 
-#./merge_pdf.sh -f "[input] current image@current image" -f "[input] p1 label@prev label" -t "assembly.pdf"
+#./merge_pdf.sh -f "[input] current image@current image" -f "[input] p1 label@prev label" -t "assembly.pdf -s 1x2"
 
 F_CNT=0
-while getopts "f:t:" opt; do
+while getopts "f:t:s:" opt; do
     case ${opt} in
         f)
             FOLDERS+=("$OPTARG")
             F_CNT=$(($F_CNT+1));;
         t)
             TARGETFILE="$OPTARG";;
+        s)
+            ROW_COLUMN=$OPTARG;;
     esac
 done
 
@@ -31,7 +33,13 @@ do
 
         CMD+=" -label '${FOLDER_TAG}' '${FOLDER_NAME}/${FILE_NAME}'"
     done
-    CMD+=" -pointsize 24 -tile ${F_CNT}x1 -geometry +20+20 -border 1 -bordercolor '#444444' miff:- ; "
+    if [ -z ${ROW_COLUMN+x} ]
+    then
+        CMD+=" -pointsize 24 -tile ${F_CNT}x1 -geometry +20+20 -border 1 -bordercolor '#444444' miff:- ; "
+    else
+        CMD+=" -pointsize 24 -tile ${ROW_COLUMN} -geometry +20+20 -border 1 -bordercolor '#444444' miff:- ; "
+    fi
+    
 done
 
 CMD+="} | montage miff:- -tile 1x1 -geometry +1+1 '${TARGETFILE}'"
