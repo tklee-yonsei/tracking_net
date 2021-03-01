@@ -22,14 +22,7 @@ def cosine_proximity(y_true, y_pred, axis=-1):
         Cosine similarity value.
     """
     y_true = nn.l2_normalize(y_true, axis=axis)
-    print("y_true")
-    print(y_true)
     y_pred = nn.l2_normalize(y_pred, axis=axis)
-    print("y_pred")
-    print(y_pred)
-    result = math_ops.reduce_sum(y_true * y_pred, axis=axis)
-    print("result")
-    print(result)
     return math_ops.reduce_sum(y_true * y_pred, axis=axis)
 
 
