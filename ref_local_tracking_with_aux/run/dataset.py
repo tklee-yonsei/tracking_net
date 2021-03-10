@@ -310,6 +310,118 @@ def make_preprocessed_tf_test_sample_dataset(
     return dataset
 
 
+def make_preprocessed_tf_test_dataset(
+    batch_size: int,
+    inout_folder_tuple: Tuple[Tuple[str, str, str], Tuple[str, str, str]],
+    bin_size: int,
+):
+    """
+    중간 레이어 비교를 위한 테스트 프리프로세싱
+    """
+    input_main_image_folder = inout_folder_tuple[0][0]
+    input_ref_image_folder = inout_folder_tuple[0][1]
+    input_ref_label_folder = inout_folder_tuple[0][2]
+    output_main_label_folder = inout_folder_tuple[1][0]
+    output_main_bw_label_folder = inout_folder_tuple[1][1]
+    output_ref_bw_label_folder = inout_folder_tuple[1][2]
+
+    main_image_file_names = tf.data.Dataset.list_files(
+        input_main_image_folder + "/*", shuffle=False
+    ).map(get_filename_from_fullpath)
+    dataset = (
+        main_image_file_names.map(
+            lambda fname: (
+                (
+                    combine_folder_file(input_main_image_folder, fname),
+                    combine_folder_file(input_ref_image_folder, fname),
+                    combine_folder_file(input_ref_label_folder, fname),
+                    combine_folder_file(input_ref_label_folder, fname),
+                    combine_folder_file(input_ref_label_folder, fname),
+                    combine_folder_file(input_ref_label_folder, fname),
+                ),
+                (
+                    output_main_label_folder + "/" + fname,
+                    combine_folder_file(output_main_bw_label_folder, fname),
+                    combine_folder_file(output_ref_bw_label_folder, fname),
+                ),
+                (fname),
+            )
+        )
+        .map(
+            lambda input_path_names, output_label_fnames, fname: (
+                (
+                    decode_png(input_path_names[0]),
+                    decode_png(input_path_names[1]),
+                    decode_png(input_path_names[2], 3),
+                    decode_png(input_path_names[3], 3),
+                    decode_png(input_path_names[4], 3),
+                    decode_png(input_path_names[5], 3),
+                ),
+                (
+                    decode_png(output_label_fnames[0], 3),
+                    decode_png(output_label_fnames[1]),
+                    decode_png(output_label_fnames[2]),
+                ),
+                (fname),
+            ),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+        .map(
+            lambda input_imgs, output_label, fname: (
+                input_imgs,
+                tf_color_to_random_map(input_imgs[5], output_label[0], bin_size, 1),
+                output_label,
+                fname,
+            ),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+        .map(
+            lambda input_imgs, color_info, output_labels, fname: (
+                (
+                    tf_main_image_preprocessing_sequence(input_imgs[0]),
+                    tf_ref_image_preprocessing_sequence(input_imgs[1]),
+                    tf_input_ref_label_1_preprocessing_function(
+                        input_imgs[2], color_info, bin_size
+                    ),
+                    tf_input_ref_label_2_preprocessing_function(
+                        input_imgs[3], color_info, bin_size
+                    ),
+                    tf_input_ref_label_3_preprocessing_function(
+                        input_imgs[4], color_info, bin_size
+                    ),
+                    tf_input_ref_label_4_preprocessing_function(
+                        input_imgs[5], color_info, bin_size
+                    ),
+                ),
+                color_info,
+                fname,
+                (
+                    tf_output_label_processing(output_labels[0], color_info, bin_size),
+                    tf_input_ref_label_1_preprocessing_function(
+                        output_labels[0], color_info, bin_size
+                    ),
+                    tf_input_ref_label_2_preprocessing_function(
+                        output_labels[0], color_info, bin_size
+                    ),
+                    tf_input_ref_label_3_preprocessing_function(
+                        output_labels[0], color_info, bin_size
+                    ),
+                    tf_input_ref_label_4_preprocessing_function(
+                        output_labels[0], color_info, bin_size
+                    ),
+                ),
+            ),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+    )
+    dataset = (
+        dataset.batch(batch_size, drop_remainder=True)
+        .cache()
+        .prefetch(tf.data.experimental.AUTOTUNE)
+    )
+    return dataset
+
+
 def plot_and_upload_dataset(
     dataset, batch_size: int, bin_size: int, bucket_name: str, upload_gs_folder: str
 ):

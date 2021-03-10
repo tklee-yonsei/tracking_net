@@ -1,0 +1,106 @@
+from typing import Optional
+
+import tensorflow as tf
+from image_keras.tf.keras.layers.extract_patch_layer import ExtractPatchLayer
+from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
+
+
+class RefLocal8(Layer):
+    """
+    Ref Local layer includes intermediate conv layer.
+    Without included Aggregation Layer.
+    """
+
+    def __init__(
+        self,
+        intermediate_dim: Optional[int] = None,
+        k_size: int = 5,
+        mode: str = "dot",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.input_intermediate_dim = intermediate_dim
+        self.k_size = k_size
+        self.mode = mode
+
+    def build(self, input_shape):
+        self.input_main_batch_size = input_shape[0][0]
+        self.input_main_h_size = input_shape[0][1]
+        self.input_main_channels_size = input_shape[0][-1]
+        self.input_intermediate_dim = (
+            self.input_intermediate_dim or self.input_main_channels_size
+        )
+
+        self.conv_main = Conv2D(
+            filters=self.input_intermediate_dim,
+            kernel_size=1,
+            padding="same",
+            use_bias=False,
+            kernel_initializer="he_normal",
+        )
+        self.conv_ref = Conv2D(
+            filters=self.input_intermediate_dim,
+            kernel_size=1,
+            padding="same",
+            use_bias=False,
+            kernel_initializer="he_normal",
+        )
+
+    def get_config(self):
+        config = super(RefLocal8, self).get_config()
+        config.update(
+            {
+                "intermediate_dim": self.input_intermediate_dim,
+                "k_size": self.k_size,
+                "mode": self.mode,
+            }
+        )
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    def call(self, inputs):
+        main = inputs[0]
+        ref = inputs[1]
+
+        # conv_main = self.conv_main(main)
+        # conv_ref = self.conv_ref(ref)
+
+        conv_main = main
+        conv_ref = ref
+
+        # Attention
+        ref_stacked = ExtractPatchLayer(k_size=self.k_size)(conv_ref)
+        ref_stacked = Reshape(
+            (
+                self.input_main_h_size,
+                self.input_main_h_size,
+                self.k_size * self.k_size,
+                self.input_main_channels_size,
+                # self.input_intermediate_dim,
+            )
+        )(ref_stacked)
+
+        if self.mode == "dot":
+            attn = tf.einsum("bhwc,bhwkc->bhwk", conv_main, ref_stacked)
+            attn = Softmax()(attn)
+            # attn = tf.nn.softmax(attn, axis=-1)
+        elif self.mode == "norm_dot":
+            ref_main = tf.concat([ref_stacked, tf.expand_dims(main, -2)], axis=-2)
+            attn = tf.einsum("bhwc,bhwkc->bhwk", main, ref_main)
+            attn = Softmax()(attn)
+            # attn = tf.nn.softmax(attn, axis=-1)
+            attn = attn[:, :, :, :-1]
+        elif self.mode == "gaussian":
+            attn = tf.math.exp(
+                -tf.reduce_sum(tf.math.squared_difference(main, ref_stacked), axis=-1)
+            )
+            raise NotImplementedError("gaussian model has not been implemented yet")
+        else:
+            raise ValueError(
+                "`mode` value is not valid. Should be one of 'dot', 'norm_dot', 'gaussian'."
+            )
+
+        return attn
