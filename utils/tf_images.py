@@ -177,6 +177,20 @@ def tf_generate_color_map(img):
     return img_color_index, img_color
 
 
+def tf_image_shrink(
+    detached_img, bin_num: int, resize_by_power_of_two: int = 0,
+):
+    ratio = 2 ** resize_by_power_of_two
+    result = tf.map_fn(
+        lambda x: tf_shrink3D(
+            x, tf.shape(x)[-3] // ratio, tf.shape(x)[-2] // ratio, bin_num
+        ),
+        detached_img,
+    )
+    result = tf.divide(result, ratio ** 2)
+    return result
+
+
 def tf_shrink3D(data, rows: int, cols: int, channels: int):
     """
     Shrink 3D `Tensor` data.
@@ -200,7 +214,7 @@ def tf_shrink3D(data, rows: int, cols: int, channels: int):
     Examples
     --------
     >>> import tensorflow as tf
-    >>> from utils import tf_images 
+    >>> from utils import tf_images
     >>> a = tf.constant(
     ...     np.array(
     ...         [
@@ -234,11 +248,11 @@ def tf_shrink3D(data, rows: int, cols: int, channels: int):
                         tf.shape(data)[-1] // channels,
                     ],
                 ),
-                axis=1,
+                axis=-5,  # axis=1,
             ),
-            axis=2,
+            axis=-3,  # axis=2,
         ),
-        axis=3,
+        axis=-1,  # axis=3,
     )
 
 
