@@ -8,24 +8,20 @@ from tensorflow.keras.layers import Conv2D, Layer, Reshape, Softmax
 class RefLocal7(Layer):
     """
     Ref Local layer includes intermediate conv layer.
-    With Aggregation Layer.
+    Without included Aggregation Layer.
     """
 
     def __init__(
         self,
-        bin_size: int,
         intermediate_dim: Optional[int] = None,
         k_size: int = 5,
         mode: str = "dot",
-        aggregate_mode: str = "weighted_sum",
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.bin_size = bin_size
         self.input_intermediate_dim = intermediate_dim
         self.k_size = k_size
         self.mode = mode
-        self.aggregate_mode = aggregate_mode
 
     def build(self, input_shape):
         self.input_main_batch_size = input_shape[0][0]
@@ -51,14 +47,12 @@ class RefLocal7(Layer):
         )
 
     def get_config(self):
-        config = super(RefLocal7, self).get_config()
+        config = super(RefLocal8, self).get_config()
         config.update(
             {
-                "bin_size": self.bin_size,
                 "intermediate_dim": self.input_intermediate_dim,
                 "k_size": self.k_size,
                 "mode": self.mode,
-                "aggregate_mode": self.aggregate_mode,
             }
         )
         return config
@@ -70,7 +64,6 @@ class RefLocal7(Layer):
     def call(self, inputs):
         main = inputs[0]
         ref = inputs[1]
-        ref_value = inputs[2]
 
         conv_main = self.conv_main(main)
         conv_ref = self.conv_ref(ref)
@@ -85,18 +78,12 @@ class RefLocal7(Layer):
                 self.input_intermediate_dim,
             )
         )(ref_stacked)
-        # ref_stacked = tf.reshape(
-        #     ref_stacked,
-        #     (
-        #         -1,
-        #         self.input_main_h_size,
-        #         self.input_main_h_size,
-        #         self.k_size * self.k_size,
-        #         self.input_intermediate_dim,
-        #     ),
-        # )
+
         if self.mode == "dot":
-            attn = tf.einsum("bhwc,bhwkc->bhwk", conv_main, ref_stacked)
+            ref_with_main = tf.concat(
+                [ref_stacked, tf.expand_dims(conv_main, -2)], axis=-2
+            )
+            attn = tf.einsum("bhwc,bhwkc->bhwk", conv_main, ref_with_main)
             attn = Softmax()(attn)
             # attn = tf.nn.softmax(attn, axis=-1)
         elif self.mode == "norm_dot":
@@ -115,48 +102,4 @@ class RefLocal7(Layer):
                 "`mode` value is not valid. Should be one of 'dot', 'norm_dot', 'gaussian'."
             )
 
-        # Aggregate
-        if self.aggregate_mode == "weighted_sum":
-            ref_value_stacked = ExtractPatchLayer(k_size=self.k_size)(ref_value)
-            ref_value_stacked = Reshape(
-                (
-                    self.input_main_h_size,
-                    self.input_main_h_size,
-                    self.k_size * self.k_size,
-                    self.bin_size,
-                )
-            )(ref_value_stacked)
-            # ref_value_stacked = tf.reshape(
-            #     ref_value_stacked,
-            #     (
-            #         -1,
-            #         self.input_main_h_size,
-            #         self.input_main_h_size,
-            #         self.k_size * self.k_size,
-            #         self.bin_size,
-            #     ),
-            # )
-            aggregation = tf.einsum("bhwk,bhwki->bhwi", attn, ref_value_stacked)
-        elif self.aggregate_mode == "argmax":
-            raise NotImplementedError("`argmax` aggregate has not been implemented yet")
-            ref_value_stacked = ExtractPatchLayer(k_size=self.k_size)(ref_value)
-            ref_value_stacked = tf.reshape(
-                ref_value_stacked,
-                (
-                    -1,
-                    self.h_size,
-                    self.h_size,
-                    self.k_size * self.k_size,
-                    self.bin_size,
-                ),
-            )
-            attn2 = tf.one_hot(
-                tf.argmax(attn, axis=-1), depth=tf.shape(attn)[-1], dtype=tf.float32
-            )
-            one_hot = tf.one_hot(tf.cast(output, tf.int32), num_words, dtype=tf.float32)
-            aggregation = tf.einsum("bhwk,bhwki->bhwi", attn2, ref_value_stacked)
-        else:
-            raise ValueError(
-                "`aggregate_mode` value is not valid. Should be one of 'weighted_sum', 'argmax'."
-            )
-        return aggregation
+        return attn
