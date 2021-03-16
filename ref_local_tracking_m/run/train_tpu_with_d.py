@@ -314,7 +314,9 @@ Training Data Folder: {}/{}
             )
         else:
             model = getattr(ref_tracking_model_module, model_name)(
-                pre_trained_unet_l4_model=unet_model, bin_num=bin_size
+                unet_l4_model_main=unet_model,
+                unet_l4_model_ref=unet_model,
+                bin_num=bin_size,
             )
 
         # continue setting (weights)

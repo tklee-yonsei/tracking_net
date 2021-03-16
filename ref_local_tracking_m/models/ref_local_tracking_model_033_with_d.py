@@ -27,7 +27,7 @@ def get_unet_detached_layer(unet_model: Model):
     return model
 
 
-def ref_local_tracking_model_033(
+def ref_local_tracking_model_033_with_d(
     unet_l4_model_main: Model,
     unet_l4_model_ref: Model,
     input_main_image_shape: Tuple[int, int, int] = (256, 256, 1),

@@ -41,7 +41,7 @@ def aggregation_up(feature_map, filters: int):
     return up_conv_layer
 
 
-def ref_local_tracking_model_031(
+def ref_local_tracking_model_031_with_d(
     unet_l4_model_main: Model,
     unet_l4_model_ref: Model,
     input_main_image_shape: Tuple[int, int, int] = (256, 256, 1),
