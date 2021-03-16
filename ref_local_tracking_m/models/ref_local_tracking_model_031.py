@@ -32,7 +32,11 @@ def get_unet_layer(unet_model: Model):
 def aggregation_up(feature_map, filters: int):
     up_layer: Layer = UpSampling2D()(feature_map)
     up_conv_layer: Layer = Conv2D(
-        filters=filters, kernel_size=3, padding="same", kernel_initializer="he_normal"
+        filters=filters,
+        kernel_size=3,
+        padding="same",
+        kernel_initializer="he_normal",
+        activation="relu",
     )(up_layer)
     return up_conv_layer
 

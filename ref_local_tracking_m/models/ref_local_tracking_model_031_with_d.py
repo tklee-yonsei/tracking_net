@@ -9,11 +9,11 @@ from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concaten
 from tensorflow.keras.models import Model
 
 
-def get_unet_layer(unet_model: Model):
+def get_unet_detached_layer(unet_model: Model):
     skip_names = [
-        unet_model.layers[11].name,
-        unet_model.layers[8].name,
-        unet_model.layers[5].name,
+        unet_model.layers[14].name,
+        unet_model.layers[10].name,
+        unet_model.layers[6].name,
         unet_model.layers[2].name,
     ]
     model = Model(
@@ -41,17 +41,7 @@ def aggregation_up(feature_map, filters: int):
     return up_conv_layer
 
 
-def concat_conv(feature_map, filters: int):
-    conv_layer: Layer = Conv2D(
-        filters, 3, padding="same", kernel_initializer="he_normal"
-    )(feature_map)
-    conv_layer = Conv2D(256, 3, padding="same", kernel_initializer="he_normal")(
-        conv_layer
-    )
-    return conv_layer
-
-
-def ref_local_tracking_model_032(
+def ref_local_tracking_model_031(
     unet_l4_model_main: Model,
     unet_l4_model_ref: Model,
     input_main_image_shape: Tuple[int, int, int] = (256, 256, 1),
@@ -62,8 +52,8 @@ def ref_local_tracking_model_032(
 ):
     filters: int = 16
 
-    main_unet_model = get_unet_layer(unet_l4_model_main)
-    ref_unet_model = get_unet_layer(unet_l4_model_ref)
+    main_unet_model = get_unet_detached_layer(unet_l4_model_main)
+    ref_unet_model = get_unet_detached_layer(unet_l4_model_ref)
 
     # Inputs
     main_image_input: Layer = Input(shape=input_main_image_shape)
@@ -94,9 +84,6 @@ def ref_local_tracking_model_032(
         bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
     )([diff_local1, ref_label_1_input])
     up1: Layer = aggregation_up(diff_agg1, filters=bin_num)
-    concat1: Layer = concatenate([main_unet[1], up1])
-    conv1: Layer = concat_conv(concat1, filters=256)
-    conv1 = Conv2D(bin_num, kernel_size=1, kernel_initializer="he_normal")(conv1)
 
     # Second
     diff_local2: Layer = RefLocal7(mode="dot", k_size=5, intermediate_dim=128)(
@@ -104,11 +91,8 @@ def ref_local_tracking_model_032(
     )
     diff_agg2 = AggregationLayer2(
         bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
-    )([diff_local2, ref_label_2_input, conv1])
+    )([diff_local2, ref_label_2_input, up1])
     up2: Layer = aggregation_up(diff_agg2, filters=bin_num)
-    concat2: Layer = concatenate([main_unet[2], up2])
-    conv2: Layer = concat_conv(concat2, filters=128)
-    conv2 = Conv2D(bin_num, kernel_size=1, kernel_initializer="he_normal")(conv2)
 
     # Third
     diff_local3: Layer = RefLocal7(mode="dot", k_size=5, intermediate_dim=64)(
@@ -116,11 +100,8 @@ def ref_local_tracking_model_032(
     )
     diff_agg3 = AggregationLayer2(
         bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
-    )([diff_local3, ref_label_3_input, conv2])
+    )([diff_local3, ref_label_3_input, up2])
     up3: Layer = aggregation_up(diff_agg3, filters=bin_num)
-    concat3: Layer = concatenate([main_unet[3], up3])
-    conv3: Layer = concat_conv(concat3, filters=64)
-    conv3 = Conv2D(bin_num, kernel_size=1, kernel_initializer="he_normal")(conv3)
 
     # Fourth
     diff_local4: Layer = RefLocal7(mode="dot", k_size=5, intermediate_dim=32)(
@@ -128,7 +109,7 @@ def ref_local_tracking_model_032(
     )
     diff_agg4 = AggregationLayer2(
         bin_size=bin_num, k_size=5, aggregate_mode="weighted_sum"
-    )([diff_local4, ref_label_4_input, conv3])
+    )([diff_local4, ref_label_4_input, up3])
 
     conv1 = Conv2D(
         filters=60,

@@ -9,11 +9,11 @@ from tensorflow.keras.layers import Conv2D, Input, Layer, UpSampling2D, concaten
 from tensorflow.keras.models import Model
 
 
-def get_unet_layer(unet_model: Model):
+def get_unet_detached_layer(unet_model: Model):
     skip_names = [
-        unet_model.layers[11].name,
-        unet_model.layers[8].name,
-        unet_model.layers[5].name,
+        unet_model.layers[14].name,
+        unet_model.layers[10].name,
+        unet_model.layers[6].name,
         unet_model.layers[2].name,
     ]
     model = Model(
@@ -62,8 +62,8 @@ def ref_local_tracking_model_032(
 ):
     filters: int = 16
 
-    main_unet_model = get_unet_layer(unet_l4_model_main)
-    ref_unet_model = get_unet_layer(unet_l4_model_ref)
+    main_unet_model = get_unet_detached_layer(unet_l4_model_main)
+    ref_unet_model = get_unet_detached_layer(unet_l4_model_ref)
 
     # Inputs
     main_image_input: Layer = Input(shape=input_main_image_shape)

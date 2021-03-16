@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tf_clahe
 from image_keras.tf.utils.images import (
     tf_change_order,
     tf_equalize_histogram,
@@ -11,7 +12,8 @@ from tensorflow.python.ops.image_ops_impl import ResizeMethod
 
 def tf_main_image_preprocessing_sequence(img):
     img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
-    img = tf_equalize_histogram(img)
+    img = tf_clahe.clahe(img, tile_grid_size=(8, 8), clip_limit=2.0)
+    # img = tf_equalize_histogram(img)
     img = tf.cast(img, tf.float32)
     img = tf.math.divide(img, 255.0)
     img = tf.reshape(img, (256, 256, 1))
@@ -20,7 +22,8 @@ def tf_main_image_preprocessing_sequence(img):
 
 def tf_ref_image_preprocessing_sequence(img):
     img = tf.image.resize(img, (256, 256), method=ResizeMethod.NEAREST_NEIGHBOR)
-    img = tf_equalize_histogram(img)
+    img = tf_clahe.clahe(img, tile_grid_size=(8, 8), clip_limit=2.0)
+    # img = tf_equalize_histogram(img)
     img = tf.cast(img, tf.float32)
     img = tf.math.divide(img, 255.0)
     img = tf.reshape(img, (256, 256, 1))
