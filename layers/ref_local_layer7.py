@@ -47,7 +47,7 @@ class RefLocal7(Layer):
         )
 
     def get_config(self):
-        config = super(RefLocal8, self).get_config()
+        config = super(RefLocal7, self).get_config()
         config.update(
             {
                 "intermediate_dim": self.input_intermediate_dim,
